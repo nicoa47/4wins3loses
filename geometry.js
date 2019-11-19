@@ -24,6 +24,41 @@ function middle(val1, val2) {
     return min + (max - min)/2;
 }
 
+function get_pos(e) {
+    var x_val = e.clientX;
+    var y_val = e.clientY;
+    return {x: x_val, y: y_val};
+}
+
+function coord_within_AABB(coord, AABB) {
+    // assuming values of AABB are ordered
+    if (coord.x < AABB[0].x || coord.x > AABB[1].x) {
+        return false;
+    }
+    if (coord.y < AABB[0].y || coord.y > AABB[1].y) {
+        return false;
+    }
+    return true;
+}
+
+function update_list(l) {
+    for (let i = 0; i < l.length; i++) {
+        l[i].update();
+    }
+}
+
+function render_list(l) {
+    for (let i = 0; i < l.length; i++) {
+        l[i].render();
+    }
+}
+
+function clicked_on_item(item_list) {
+    for (let i = 0; i < item_list.length; i++) {
+        item_list[i].clicked();
+    }
+}
+
 // test!
 display_text("AAAHH", 1, 4, 1, 4, 30, "black");
 display_text("AAAHH", 2, 4, 2, 4, 30, "blue");

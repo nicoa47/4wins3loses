@@ -9,6 +9,13 @@ var canv_h = canvas.height;
 
 // TODO implement zooming
 
+function fill_canvas(color) {
+    ctx.beginPath();
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, canv_w, canv_h);
+    ctx.closePath();
+}
+
 function display_text(label, line, n_lines, col, n_cols, size, color) {
     ctx.beginPath();
     // derive the coord by getting ys of line given the size
