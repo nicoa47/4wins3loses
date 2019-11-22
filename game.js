@@ -3,10 +3,10 @@ var game_state = "menu"; // menu game rules options
 
 // containers
 var menu_items = [];
-menu_items.push(new MenuItem("game",        "START GAME",  50, [1, 4]));
-menu_items.push(new MenuItem("rules",       "RULES",       50, [2, 4]));
-menu_items.push(new MenuItem("options",     "OPTIONS",     50, [3, 4]));
-menu_items.push(new MenuItem("highscores",  "HIGHSCORES",  50, [4, 4]));
+menu_items.push(new MenuItem("game",        "START GAME",  80, [1, 4]));
+menu_items.push(new MenuItem("rules",       "RULES",       80, [2, 4]));
+menu_items.push(new MenuItem("options",     "OPTIONS",     80, [3, 4]));
+menu_items.push(new MenuItem("highscores",  "HIGHSCORES",  80, [4, 4]));
 var menu = new Menu(menu_items);
 
 var rules_lines = [];
@@ -21,6 +21,7 @@ var rules = new Rules(rules_lines);
 // add event listeners
 document.addEventListener('mousedown', mousedown);
 document.addEventListener('mousemove', mousemove);
+window.addEventListener('resize', resize);
 
 // creating the game loop
 function update() {
@@ -34,7 +35,7 @@ function update() {
 
 function draw_all() {
     // clear canvas
-    fill_canvas("white");
+    fill_canvas("lightblue");
 
     // distinction of game states
     if (game_state == "menu") {
