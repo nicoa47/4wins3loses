@@ -42,7 +42,7 @@ function resize() {
 // call resize once, then set the fixed canv_w, canv_h again
 resize();
 
-// TODO implement zooming
+// TODO implement zooming (?)
 
 function clear_canvas() {
     ctx.clearRect(0, 0, canv_w, canv_h)

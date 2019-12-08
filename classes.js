@@ -129,7 +129,8 @@ class SpecialFunctionItem extends MenuItem {
                 game_state = "reg_log_in";
             }
             if (this.func == "start_game_search_players") {
-                
+                // get the name of challenged player
+
             }
             if (this.func == "start_game_search_games") {
                 
@@ -999,13 +1000,14 @@ class SearchPlayerScreen {
     constructor() {
         this.items = [
             new StaticText(game_state, "Welcome, "+logged_in_name+"!", 70, [1, 7], [1, 1]),
-            new SearchPlayerInput([2, 7], "start_game_search_players", "Search for Players"),
+            new SearchPlayerInput([2, 7], "start_game_search_players", "Search for Players"), //
             new SpecialFunctionItem("log_off", "Log Off", 60, [7, 7], [1, 2]),
             new MenuItem("menu", "Back to Menu", 60, [7, 7], [2, 2]),
         ];
     }
     update() {
         update_list(this.items);
+
     }
     render() {
         render_list(this.items);
@@ -1137,7 +1139,7 @@ class SearchGameScreen {
     constructor() {
         this.items = [
             new StaticText(game_state, "Welcome, "+logged_in_name+"!", 70, [1, 7], [1, 1]),
-            new SearchPlayerInput([2, 7], "start_game_search_games", "Search for Game"),
+            new SearchPlayerInput([2, 7], "start_game_search_games", "Search for Game"), //
             new SpecialFunctionItem("log_off", "Log Off", 60, [7, 7], [1, 2]),
             new MenuItem("menu", "Back to Menu", 60, [7, 7], [2, 2]),
         ];
