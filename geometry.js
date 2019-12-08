@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 alphabet = [
     'a',
     'b',
@@ -355,7 +354,6 @@ function ongoing_game() {
     xmlhttp.send();
     return first_game_match;
 }
-=======
 // coord: {x: x_val, y: y_val}
 
 function coord(x_val, y_val) {
@@ -394,12 +392,8 @@ function middle(val1, val2) {
 function get_pos(e) {
     var x_val = e.clientX;
     var y_val = e.clientY;
-<<<<<<< HEAD
     var coord = {x: x_val, y: y_val};
     return coord_game_space(coord);
-=======
-    return {x: x_val, y: y_val};
->>>>>>> 14a316017873a057223248cb8b52a71b5f382a47
 }
 
 function coord_within_AABB(coord, AABB) {
@@ -429,14 +423,4 @@ function clicked_on_item(item_list) {
     for (let i = 0; i < item_list.length; i++) {
         item_list[i].clicked();
     }
-<<<<<<< HEAD
 }
-=======
-}
-
-// test!
-display_text("AAAHH", 1, 4, 1, 4, 30, "black");
-display_text("AAAHH", 2, 4, 2, 4, 30, "blue");
-display_text("AAAHH", 3, 4, 3, 4, 30, "grey");
->>>>>>> 14a316017873a057223248cb8b52a71b5f382a47
->>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
