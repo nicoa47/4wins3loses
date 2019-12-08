@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 var current_mouse_pos = {x: 0, y: 0}; // keeping track of current mouse position
 var game_state = "menu";
 // menu reg_log_in register log_in search_player search_game
@@ -24,10 +25,33 @@ var game;
 var game_end;
 var search_player_screen;
 var search_game_screen;
+=======
+<<<<<<< HEAD
+var current_mouse_pos = {x: 0, y: 0}; // keeping track of current mouse position
+var game_state = "menu"; // menu game rules options 
+
+// containers
+var menu_items = [];
+menu_items.push(new MenuItem("game",        "START GAME",  80, [1, 4]));
+menu_items.push(new MenuItem("rules",       "RULES",       80, [2, 4]));
+menu_items.push(new MenuItem("options",     "OPTIONS",     80, [3, 4]));
+menu_items.push(new MenuItem("highscores",  "HIGHSCORES",  80, [4, 4]));
+var menu = new Menu(menu_items);
+
+var rules_lines = [];
+rules_lines.push(new StaticText(game_state, "put 4 of your stones in a row, column or diagonal", 20, [1, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "avoid putting 3 of your stones in a row, column or diagonal", 20, [2, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "stop your opponent from putting 4 of his/her stones in a row, column or diagonal", 20, [3, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "fool your opponent into putting 3 of his/her stones in a row, column or diagonal", 20, [4, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "Have fun!", 20, [6, 10], [1, 1]));
+rules_lines.push(new MenuItem("menu", "Go Back to Menu", 20, [8, 10], [1, 1]));
+var rules = new Rules(rules_lines);
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
 
 // add event listeners
 document.addEventListener('mousedown', mousedown);
 document.addEventListener('mousemove', mousemove);
+<<<<<<< HEAD
 document.addEventListener('keydown', keydown);
 document.addEventListener('keyup', keyup);
 window.addEventListener('resize', resize);
@@ -113,6 +137,14 @@ function update() {
         options.update();
     }
 
+=======
+window.addEventListener('resize', resize);
+
+// creating the game loop
+function update() {
+    // update everything
+    update_list(menu_items);
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
     // draw everything
     draw_all();
     // keep animation going
@@ -121,13 +153,18 @@ function update() {
 
 function draw_all() {
     // clear canvas
+<<<<<<< HEAD
     clear_canvas();
     fill_canvas("rgba(255,255,255,0)");
+=======
+    fill_canvas("lightblue");
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
 
     // distinction of game states
     if (game_state == "menu") {
         menu.render();
     }
+<<<<<<< HEAD
     else if (game_state == "reg_log_in") {
         reg_log_in_screen.render();
     }
@@ -410,6 +447,22 @@ function mousedown(e) {
         else if (game_state == "options") {
             clicked_on_item(options.items);
         }
+=======
+    else if (game_state == "rules") {
+        rules.render();
+    }
+}
+
+function mousedown(e) {
+    // get position
+    current_mouse_pos = get_pos(e);
+    // activate items
+    if (game_state == "menu") {
+        clicked_on_item(menu.items);
+    }
+    if (game_state == "rules") {
+        clicked_on_item(rules.lines);
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
     }
 }
 
@@ -418,9 +471,80 @@ function mousemove(e) {
     current_mouse_pos = get_pos(e);
 }
 
+<<<<<<< HEAD
 function unload(e) {
     log_off();
 }
 
 // start updating
+=======
+// start updating
+=======
+var current_mouse_pos = {x: 0, y: 0}; // keeping track of current mouse position
+var game_state = "menu"; // menu game rules options 
+
+// containers
+var menu_items = [];
+menu_items.push(new MenuItem("game",        "START GAME",  50, [1, 4]));
+menu_items.push(new MenuItem("rules",       "RULES",       50, [2, 4]));
+menu_items.push(new MenuItem("options",     "OPTIONS",     50, [3, 4]));
+menu_items.push(new MenuItem("highscores",  "HIGHSCORES",  50, [4, 4]));
+var menu = new Menu(menu_items);
+
+var rules_lines = [];
+rules_lines.push(new StaticText(game_state, "put 4 of your stones in a row, column or diagonal", 20, [1, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "avoid putting 3 of your stones in a row, column or diagonal", 20, [2, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "stop your opponent from putting 4 of his/her stones in a row, column or diagonal", 20, [3, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "fool your opponent into putting 3 of his/her stones in a row, column or diagonal", 20, [4, 10], [1, 1]));
+rules_lines.push(new StaticText(game_state, "Have fun!", 20, [6, 10], [1, 1]));
+rules_lines.push(new MenuItem("menu", "Go Back to Menu", 20, [8, 10], [1, 1]));
+var rules = new Rules(rules_lines);
+
+// add event listeners
+document.addEventListener('mousedown', mousedown);
+document.addEventListener('mousemove', mousemove);
+
+// creating the game loop
+function update() {
+    // update everything
+    update_list(menu_items);
+    // draw everything
+    draw_all();
+    // keep animation going
+    requestAnimationFrame(update);
+}
+
+function draw_all() {
+    // clear canvas
+    fill_canvas("white");
+
+    // distinction of game states
+    if (game_state == "menu") {
+        menu.render();
+    }
+    else if (game_state == "rules") {
+        rules.render();
+    }
+}
+
+function mousedown(e) {
+    // get position
+    current_mouse_pos = get_pos(e);
+    // activate items
+    if (game_state == "menu") {
+        clicked_on_item(menu.items);
+    }
+    if (game_state == "rules") {
+        clicked_on_item(rules.lines);
+    }
+}
+
+function mousemove(e) {
+    // get position
+    current_mouse_pos = get_pos(e);
+}
+
+// start updating
+>>>>>>> 14a316017873a057223248cb8b52a71b5f382a47
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
 update();

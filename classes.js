@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
 class MenuItem {
     constructor(target_state, label, size, line_of_lines, col_of_cols=[1, 1]) {
         this.target_state = target_state;
@@ -17,6 +21,7 @@ class MenuItem {
     }
     clicked() {
         if (coord_within_AABB(current_mouse_pos, this.AABB)) {
+<<<<<<< HEAD
             // catch special cases first
             if ((this.target_state == "search_player" || this.target_state == "search_game")
             && logged_in_name == "") {
@@ -36,6 +41,9 @@ class MenuItem {
             } else {
                 game_state = this.target_state;
             }
+=======
+            game_state = this.target_state;
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
         }
     }
     update() {
@@ -52,6 +60,7 @@ class MenuItem {
     }
 }
 
+<<<<<<< HEAD
 class SpecialFunctionItem extends MenuItem {
     constructor(func, label, size, line_of_lines, col_of_cols) {
         super(game_state, label, size, line_of_lines, col_of_cols);
@@ -138,19 +147,25 @@ class SpecialFunctionItem extends MenuItem {
     }
 }
 
+=======
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
 class StaticText extends MenuItem {
     constructor(target_state, label, size, line_of_lines, col_of_cols) {
         super(target_state, label, size, line_of_lines, col_of_cols);
     }
+<<<<<<< HEAD
     clicked() {
         // do nothing
     }
+=======
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
     update() {
         // do nothing
     }
 }
 
 class Menu {
+<<<<<<< HEAD
     constructor() {
         this.items = [
             new StaticText(game_state,      "4 wins*",          120, [2, 14], [1, 1]),
@@ -161,6 +176,10 @@ class Menu {
             new MenuItem("options",         "OPTIONS",          70,  [6, 7]),
             new MenuItem("menu",            "HIGHSCORES",       70,  [7, 7]),
         ];
+=======
+    constructor(items) {
+        this.items = items;
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
     }
     update() {
         update_list(this.items);
@@ -171,6 +190,7 @@ class Menu {
 }
 
 class Rules {
+<<<<<<< HEAD
     constructor() {
         this.lines = [
             new StaticText(game_state, "Put 4 of your stones in a row, column or diagonal.",                                 50, [2, 10], [1, 1]),
@@ -180,6 +200,10 @@ class Rules {
             new StaticText(game_state, "Have fun!",                                                                          50, [7, 10], [1, 1]),
             new MenuItem("menu", "Go Back to Menu",                                                                          60, [9, 10], [1, 1]),
         ];
+=======
+    constructor(lines) {
+        this.lines = lines;
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
     }
     update() {
         update_list(this.lines);
@@ -187,6 +211,7 @@ class Rules {
     render() {
         render_list(this.lines);
     }
+<<<<<<< HEAD
 }
 
 class ValueSelector {
@@ -1148,4 +1173,75 @@ class SearchGameScreen {
     render() {
         render_list(this.items);
     }
+=======
+=======
+class MenuItem {
+    constructor(target_state, label, size, line_of_lines, col_of_cols=[1, 1]) {
+        this.target_state = target_state;
+        this.label = label;
+        this.size = size;
+        this.line = line_of_lines[0];
+        this.n_lines = line_of_lines[1];
+        this.col = col_of_cols[0];
+        this.n_cols = col_of_cols[1];
+
+        this.base_color = "black";
+        this.hover_color = "grey";
+        this.color = this.base_color;
+        this.hovered = false;
+
+        this.AABB = get_text_AABB(this.line, this.n_lines, this.col, this.n_cols);
+    }
+    clicked() {
+        if (coord_within_AABB(current_mouse_pos, this.AABB)) {
+            game_state = this.target_state;
+        }
+    }
+    update() {
+        if (coord_within_AABB(current_mouse_pos, this.AABB)) {
+            this.hovered = true;
+            this.color = this.hover_color;
+        } else {
+            this.hovered = false;
+            this.color = this.base_color;
+        }
+    }
+    render() {
+        display_text(this.label, this.line, this.n_lines, this.col, this.n_cols, this.size, this.color);
+    }
+}
+
+class StaticText extends MenuItem {
+    constructor(target_state, label, size, line_of_lines, col_of_cols) {
+        super(target_state, label, size, line_of_lines, col_of_cols);
+    }
+    update() {
+        // do nothing
+    }
+}
+
+class Menu {
+    constructor(items) {
+        this.items = items;
+    }
+    update() {
+        update_list(this.items);
+    }
+    render() {
+        render_list(this.items);
+    }
+}
+
+class Rules {
+    constructor(lines) {
+        this.lines = lines;
+    }
+    update() {
+        update_list(this.lines);
+    }
+    render() {
+        render_list(this.lines);
+    }
+>>>>>>> 14a316017873a057223248cb8b52a71b5f382a47
+>>>>>>> a87670cce9ad1992033953a759f3285db7a181d7
 }
