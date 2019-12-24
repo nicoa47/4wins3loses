@@ -24,25 +24,6 @@ var game;
 var game_end;
 var search_player_screen;
 var search_game_screen;
-var current_mouse_pos = {x: 0, y: 0}; // keeping track of current mouse position
-var game_state = "menu"; // menu game rules options 
-
-// containers
-var menu_items = [];
-menu_items.push(new MenuItem("game",        "START GAME",  80, [1, 4]));
-menu_items.push(new MenuItem("rules",       "RULES",       80, [2, 4]));
-menu_items.push(new MenuItem("options",     "OPTIONS",     80, [3, 4]));
-menu_items.push(new MenuItem("highscores",  "HIGHSCORES",  80, [4, 4]));
-var menu = new Menu(menu_items);
-
-var rules_lines = [];
-rules_lines.push(new StaticText(game_state, "put 4 of your stones in a row, column or diagonal", 20, [1, 10], [1, 1]));
-rules_lines.push(new StaticText(game_state, "avoid putting 3 of your stones in a row, column or diagonal", 20, [2, 10], [1, 1]));
-rules_lines.push(new StaticText(game_state, "stop your opponent from putting 4 of his/her stones in a row, column or diagonal", 20, [3, 10], [1, 1]));
-rules_lines.push(new StaticText(game_state, "fool your opponent into putting 3 of his/her stones in a row, column or diagonal", 20, [4, 10], [1, 1]));
-rules_lines.push(new StaticText(game_state, "Have fun!", 20, [6, 10], [1, 1]));
-rules_lines.push(new MenuItem("menu", "Go Back to Menu", 20, [8, 10], [1, 1]));
-var rules = new Rules(rules_lines);
 
 // add event listeners
 document.addEventListener('mousedown', mousedown);
@@ -116,6 +97,7 @@ function update() {
         search_game_screen.update();
     }
     else if (game_state == "init_game") {
+        // TODO remove this function
         game = new Game(n_hori, n_vert);
         game_state = "game";
     }
@@ -131,7 +113,6 @@ function update() {
     else if (game_state == "options") {
         options.update();
     }
-
     // draw everything
     draw_all();
     // keep animation going
@@ -411,9 +392,11 @@ function mousedown(e) {
         }
         else if (game_state == "search_player") {
             clicked_on_item(search_player_screen.items);
+            clicked_on_item(search_player_screen.items[1].names);
         }
         else if (game_state == "search_game") {
             clicked_on_item(search_game_screen.items);
+            clicked_on_item(search_game_screen.items[1].names);
         }
         else if (game_state == "game") {
             for (let index = 0; index < game.cells.length; index++) {
@@ -441,5 +424,4 @@ function unload(e) {
     log_off();
 }
 
-// start updating
 update();

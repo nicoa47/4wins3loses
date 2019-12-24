@@ -42,7 +42,7 @@ function resize() {
 // call resize once, then set the fixed canv_w, canv_h again
 resize();
 
-// TODO implement zooming (?)
+// TODO implement zooming
 
 function clear_canvas() {
     ctx.clearRect(0, 0, canv_w, canv_h)
@@ -92,6 +92,15 @@ function draw_circ(pos, size, filled, color) {
     }
     ctx.stroke(); 
     ctx.closePath();
+}
+
+function fill_cell(pos, size, color) {
+    var coords = [];
+    coords.push({x: pos.x - size/2, y: pos.y - size/2});
+    coords.push({x: pos.x - size/2, y: pos.y + size/2});
+    coords.push({x: pos.x + size/2, y: pos.y + size/2});
+    coords.push({x: pos.x + size/2, y: pos.y - size/2});
+    draw_poly(coords, true, color);
 }
 
 function draw_poly(coords, filled, color, thickness=5) {

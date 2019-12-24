@@ -1,25 +1,53 @@
 <?php
 
-$na = $_GET['q'];
+$q = $_GET['q'];
 
 $con = mysqli_connect('database-5000160186.ud-webspace.de','dbu190292','Threctia1847','dbs155300');
 if (!$con) {
     echo 'Could not connect: ' . mysqli_error($con);
 }
 
+// split the input string
+$a = explode("|", $q);
+$pl1 = $a[0];
+$pl2 = $a[1];
+
+
 // reject malicious code
-$na = mysqli_real_escape_string($con, $na);
+$pl1 = mysqli_real_escape_string($con, $pl1);
+$pl2 = mysqli_real_escape_string($con, $pl2);
 
-$sql = "SELECT * FROM fwtl_games ORDER BY player_name";
+$sql = "SELECT * FROM fwtl_games ORDER BY player_1";
 
-// ORDER BY score DESC
 
 if ($result=mysqli_query($con, $sql))
   {
+  $obj = mysqli_fetch_object($result);
   for ($i = 1; $i <= $result->num_rows; $i++)
     {
         // find first instance of game
-        if ($na=$obj->player_1) {
+        if ($pl1=$obj->player_1) {
+            if ($pl2=$obj->player_2) {
+              // get all data
+              echo $obj->player_1;
+              echo "|a|";
+              echo $obj->player_2;
+              echo "|a|";
+              echo $obj->game_dims;
+              echo "|a|";
+              echo $obj->occupied_stone_inds;
+              echo "|a|";
+              echo $obj->player_1_stone_inds;
+              echo "|a|";
+              echo $obj->player_2_stone_inds;
+              echo "|a|";
+              echo $obj->turn;
+            break;
+            }
+        }
+
+        else if ($pl1=$obj->player_2) {
+          if ($pl2=$obj->player_1) {
             // get all data
             echo $obj->player_1;
             echo "|a|";
@@ -32,27 +60,14 @@ if ($result=mysqli_query($con, $sql))
             echo $obj->player_1_stone_inds;
             echo "|a|";
             echo $obj->player_2_stone_inds;
+            echo "|a|";
+            echo $obj->turn;
+          break;
+          }
         }
-        else if ($na=$obj->player_2) {
-            // get all data
-            echo $obj->player_1;
-            echo "|a|";
-            echo $obj->player_2;
-            echo "|a|";
-            echo $obj->game_dims;
-            echo "|a|";
-            echo $obj->occupied_stone_inds;
-            echo "|a|";
-            echo $obj->player_1_stone_inds;
-            echo "|a|";
-            echo $obj->player_2_stone_inds;
-        }
-    $obj = mysqli_fetch_object($result);
-    echo $obj->player_name;
-    echo "|a|";
-    echo $obj->player_pwd;
-    echo "|b|";
+
     }
+
   // Free result set
   mysqli_free_result($result);
 }

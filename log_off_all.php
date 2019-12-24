@@ -11,4 +11,6 @@ $sql = "UPDATE fwtl_accounts SET player_online = '0'";
 // save to db
 mysqli_query($con, $sql);
 
+mysqli_close($con);
+
 ?>

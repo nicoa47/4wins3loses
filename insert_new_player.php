@@ -24,4 +24,7 @@ $sql = "INSERT INTO fwtl_accounts(player_name,player_pwd,player_mail,player_n_ga
 // save to db
 mysqli_query($con, $sql);
 
+// close
+mysqli_close($con);
+
 ?>

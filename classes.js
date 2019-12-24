@@ -18,9 +18,12 @@ class MenuItem {
     clicked() {
         if (coord_within_AABB(current_mouse_pos, this.AABB)) {
             // catch special cases first
-            if ((this.target_state == "search_player" || this.target_state == "search_game")
-            && logged_in_name == "") {
-                game_state = "reg_log_in"; 
+            if (this.target_state == "search_player" && logged_in_name == "") {
+                game_state = "reg_log_in";
+                reg_log_in_screen.goal_game_state = "search_player";
+            } else if (this.target_state == "search_game" && logged_in_name == "") {
+                game_state = "reg_log_in";
+                reg_log_in_screen.goal_game_state = "search_game";
             } else if (this.target_state == "register") {
                 register_screen = new RegisterScreen(reg_log_in_screen.goal_game_state);
                 game_state = "register";
@@ -129,11 +132,16 @@ class SpecialFunctionItem extends MenuItem {
                 game_state = "reg_log_in";
             }
             if (this.func == "start_game_search_players") {
-                // get the name of challenged player
-
+                // get the player1 name
+                var player_name = this.label;
+                // init games based on options and add to DB
+                init_game(player_name);
             }
             if (this.func == "start_game_search_games") {
-                
+                // get the player2 name
+                var player_name = this.label;
+                // get the game infos from DB
+                reload_game(player_name);
             }
         }
     }
@@ -295,10 +303,11 @@ class Cell {
         this.pos = {x: (this.l + this.r)/2, y: (this.t + this.b)/2};
 
         this.hovered = false;
-        this.state = 0; // 0: empty; 1: player1; 2: player2
+        this.state = 0; // 0: empty; 1: player1; 2: player2; 3: blocked
         
     }
     clicked() {
+        // TODO store game to DB
         if (this.hovered && this.state == 0) {
             this.state = game.turn;
             if (game.turn == 1) {
@@ -330,17 +339,23 @@ class Cell {
         if (this.state == 2) {
             draw_X(this.pos, this.size);
         }
+        if (this.state == 3) {
+            fill_cell(this.pos, this.size, "black");
+        }
     }
 }
 
 class Game {
-    constructor(n_hori, n_vert) {
-        this.n_hori = n_hori.num;
-        this.n_vert = n_vert.num;
+    constructor(n_hori, n_vert, player1, player2) {
+        this.n_hori = n_hori;
+        this.n_vert = n_vert;
 
         this.max_nums = [0, 0];
         this.max_cells = [[], []];
         this.player_state = [0, 0]; // -1: lose, 1: win
+
+        this.player1 = player1;
+        this.player2 = player2;
 
         this.init_lines();
         this.init_cells();
@@ -350,8 +365,8 @@ class Game {
 
         // cosmetics
         this.labels = [
-            new StaticText(game_state, "P1", 80, [6, 16], [2, 16]),
-            new StaticText(game_state, "P2", 80, [6, 16], [15, 16]),
+            new StaticText(game_state, this.player1, 80, [6, 16], [2, 16]),
+            new StaticText(game_state, this.player2, 80, [6, 16], [15, 16]),
         ];
         this.turn_poly_coords = [];
         this.poly_coords_p1 = [
@@ -406,6 +421,38 @@ class Game {
                 this.cells[i].push(new Cell(i, ii, l, r, t, b));
             }
         }
+    }
+    set_cells(type_ind, pos_list) {
+
+        // refresh
+        this.init_cells();
+
+        for (let index = 0; index < pos_list.length; index++) {
+            const pos = pos_list[index];
+            this.cells[pos[0]][pos[1]].state = type_ind;
+        }
+    }
+    store_cells() {
+        cells_string_player1 = "";
+        cells_string_player2 = "";
+        cells_string_blocked = "";
+        for (let i = 0; i < this.cells.length; i++) {
+            for (let ii = 0; ii < this.cells[i].length; ii++) {
+                if (this.cells[i][ii].state == 1) {
+                    var str = "x" + String(i) + "y" + String(ii);
+                    cells_string_player1 += str;
+                }
+                if (this.cells[i][ii].state == 2) {
+                    var str = "x" + String(i) + "y" + String(ii);
+                    cells_string_player2 += str;
+                }
+                if (this.cells[i][ii].state == 3) {
+                    var str = "x" + String(i) + "y" + String(ii);
+                    cells_string_blocked += str;
+                }
+            }
+        }
+        return [cells_string_player1, cells_string_player2, cells_string_blocked];
     }
     set_max(player, counter, i, ii, dir) {
         this.max_nums[player - 1] = counter;
@@ -1000,14 +1047,13 @@ class SearchPlayerScreen {
     constructor() {
         this.items = [
             new StaticText(game_state, "Welcome, "+logged_in_name+"!", 70, [1, 7], [1, 1]),
-            new SearchPlayerInput([2, 7], "start_game_search_players", "Search for Players"), //
+            new SearchPlayerInput([2, 7], "start_game_search_players", "Search for Player"),
             new SpecialFunctionItem("log_off", "Log Off", 60, [7, 7], [1, 2]),
             new MenuItem("menu", "Back to Menu", 60, [7, 7], [2, 2]),
         ];
     }
     update() {
         update_list(this.items);
-
     }
     render() {
         render_list(this.items);
@@ -1040,8 +1086,8 @@ class SearchPlayerInput {
                 this.initial_names_list = this.current_names_list;
             }
         } else {
-            // TODO: change to only display challengers
-            this.current_names_list = get_names_pwds(true)[0];
+            // only display challengers
+            this.current_names_list = find_all_relevant_games();
             if (this.initial_names_list.length == 0) {
                 this.initial_names_list = this.current_names_list;
             }
@@ -1064,9 +1110,12 @@ class SearchPlayerInput {
 
         // reset
         this.names = [];
-        this.info = [];
+        this.info = [new StaticText(game_state, "No Results", 60, [this.ll[0] + 1, this.ll[1]], [1,1])];
         
         if (this.current_names_list.length > 0) {
+
+            this.info = [];
+
             for (let index = 0; index < Math.min(this.current_names_list.length, 3); index++) {
                 this.names.push(new SpecialFunctionItem(this.sf, this.current_names_list[index], 60,
                     [this.ll[0] + 1 + index, this.ll[1]], [1, 1]));
@@ -1080,6 +1129,9 @@ class SearchPlayerInput {
                     "+ "+String(this.current_names_list.length - 3)+" more Player"+add_s, 60,
                     [this.ll[0] + 4, this.ll[1]], [1, 1]));
             }
+        }
+        else {
+            this.info = [new StaticText(game_state, "No Results", 60, [this.ll[0] + 1, this.ll[1]], [1,1])];
         }
     }
     clicked() {
@@ -1104,9 +1156,10 @@ class SearchPlayerInput {
                 // make sure all players shown if no input
                 this.current_names_list = this.initial_names_list;
             }
-            // refresh the players display
-            this.display_players();
         }
+
+        // refresh the players display
+        this.display_players();
 
         // (max) 3 elements
         for (let index = 0; index < this.input_field.length; index++) {
@@ -1139,7 +1192,7 @@ class SearchGameScreen {
     constructor() {
         this.items = [
             new StaticText(game_state, "Welcome, "+logged_in_name+"!", 70, [1, 7], [1, 1]),
-            new SearchPlayerInput([2, 7], "start_game_search_games", "Search for Game"), //
+            new SearchPlayerInput([2, 7], "start_game_search_games", "Search for Game"),
             new SpecialFunctionItem("log_off", "Log Off", 60, [7, 7], [1, 2]),
             new MenuItem("menu", "Back to Menu", 60, [7, 7], [2, 2]),
         ];
