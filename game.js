@@ -402,6 +402,7 @@ function mousedown(e) {
             for (let index = 0; index < game.cells.length; index++) {
                 clicked_on_item(game.cells[index]);
             }
+            clicked_on_item(game.items);
         }
         else if (game_state == "game_finished") {
             clicked_on_item(game_end.items);

@@ -308,8 +308,14 @@ class Cell {
     }
     clicked() {
         // TODO store game to DB
+        // TODO eliminate the turn of other player, can only be activated after DB query
         if (this.hovered && this.state == 0) {
             this.state = game.turn;
+            // append to DB --> only new stone to relevant player --> also adjust turn
+            var xmlhttp = new XMLHttpRequest();
+            // xmlhttp.onreadystatechange = function() {}
+            xmlhttp.open("GET", "apply_new_turn.php?q="+game.player1+"|"+game.player2+"|"+this.col_ind+"|"+this.row_ind+"|"+game.turn, false);
+            xmlhttp.send();
             if (game.turn == 1) {
                 game.turn = 2;
             } else {
@@ -346,7 +352,7 @@ class Cell {
 }
 
 class Game {
-    constructor(n_hori, n_vert, player1, player2) {
+    constructor(n_hori, n_vert, player1, player2, newgame=true) {
         this.n_hori = n_hori;
         this.n_vert = n_vert;
 
@@ -356,9 +362,18 @@ class Game {
 
         this.player1 = player1;
         this.player2 = player2;
+        
+        // identify the number of your player
+        if (player1 == logged_in_name) {
+            this.player = 1;
+        } else {
+            this.player = 2;
+        }
 
         this.init_lines();
-        this.init_cells();
+        if (newgame) {
+            this.init_cells();
+        }
 
         this.turn = 1;
         this.active = true;
@@ -383,6 +398,12 @@ class Game {
         ];
         this.turn_poly_coords.push(this.poly_coords_p1);
         this.turn_poly_coords.push(this.poly_coords_p2);
+
+        // menu options
+        this.items = [
+            new MenuItem("menu", "Back to Menu", 60, [14, 16], [15, 16])
+        ]
+
     }
     init_lines() {
         // init the grid coords
@@ -410,7 +431,6 @@ class Game {
     }
     init_cells() {
         this.cells = [];
-
         for (let i = 0; i < this.n_hori; i++) {
             this.cells.push([]);
             for (let ii = 0; ii < this.n_vert; ii++) {
@@ -424,13 +444,11 @@ class Game {
     }
     set_cells(type_ind, pos_list) {
 
-        // refresh
-        this.init_cells();
-
         for (let index = 0; index < pos_list.length; index++) {
             const pos = pos_list[index];
-            this.cells[pos[0]][pos[1]].state = type_ind;
+            this.cells[pos[1]][pos[0]].state = Number(type_ind);
         }
+
     }
     store_cells() {
         cells_string_player1 = "";
@@ -700,13 +718,61 @@ class Game {
             this.active = false;
             game_state = "game_finished";
             game_end = new GameEndOptions(winner);
+            // remove game from DB
+            console.log("here")
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.open("GET", "remove_finished_game.php?q="+this.player1+"|"+this.player2, false);
+            xmlhttp.send();
         }
     }
+    refresh() {
+        // reload the game parameters
+        var splitted_infos = get_game_infos_ongoing_game(this.player1, this.player2);
+        // set the stones accordingly
+        var player1_stones = decode_coord_pairs(splitted_infos[4]);
+        var player2_stones = decode_coord_pairs(splitted_infos[5]);
+        this.init_cells();
+        this.set_cells(1, player1_stones);
+        this.set_cells(2, player2_stones);
+        this.turn = Number(splitted_infos[6]) + 1;
+        // TODO switch turn --> for both players?
+        // if (this.turn == 1) {
+        //     this.turn = 2;
+        // } else {
+        //     this.turn = 1;
+        // }
+    }
     update() {
-        for (let i = 0; i < this.cells.length; i++) {
-            for (let ii = 0; ii < this.cells[i].length; ii++) {
-                this.cells[i][ii].update();
+
+        // only activate cells if it is your turn
+        if (this.turn == this.player) {
+            for (let i = 0; i < this.cells.length; i++) {
+                for (let ii = 0; ii < this.cells[i].length; ii++) {
+                    this.cells[i][ii].update();
+                }
             }
+        }
+        // otherwise, periodically check database changes
+        else {
+            // TODO: add periodicism (else probably too computationally intensive)
+            // timer as in Beste-Spiel
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    if (this.responseText != game.turn) {
+                        // game.turn = Number(this.responseText) + 1;
+                        // console.log(game.turn);
+                        // reload the game parameters
+                        game.refresh();
+                    }
+                }
+            }
+            xmlhttp.open("GET", "check_if_turn_changed.php?q="+this.player1+"|"+this.player2, false);
+            xmlhttp.send();
+        }
+
+        for (let i = 0; i < this.items.length; i++) {
+            this.items[i].update();
         }
 
         // identify longest line of one player's cells
@@ -728,6 +794,10 @@ class Game {
                 this.cells[i][ii].render();
             }
         }
+        // menu options
+        for (let index = 0; index < this.items.length; index++) {
+            this.items[index].render();
+        }
 
         // cosmetics
         render_list(this.labels);
@@ -737,39 +807,45 @@ class Game {
         // render the turn (only if game is still running)
         if (this.active) {
             if (this.turn == 1) {
-                draw_poly(this.poly_coords_p1, false, "black");
+                var p1_tri_pos = get_middle_coord(4, 16, 2, 16);
+                draw_tri(80, "l", p1_tri_pos, "black");
+                // draw_poly(this.poly_coords_p1, false, "black");
             } else {
-                draw_poly(this.poly_coords_p2, false, "black");
+                var p2_tri_pos = get_middle_coord(4, 16, 15, 16);
+                draw_tri(80, "r", p2_tri_pos, "black");
+                // draw_poly(this.poly_coords_p2, false, "black");
             }
         }
 
         // render maximum cells in sequence if one player wins/loses
         // and adjust turn box accordingly
+
+        var colors = ["red", "limegreen"];
+
         for (let p = 0; p < this.player_state.length; p++) {
             const ps = this.player_state[p];
             if (ps != 0) {
-                if (ps == -1) {
-                    var color = "red";
-                } else {
-                    var color = "green";
-                }
-                draw_poly(this.turn_poly_coords[p], false, color, 20);
-                if (p == 0) {
-                    var other_p = 1;
-                } else {
-                    var other_p = 0;
-                }
-                if (color == "green") {
-                    var other_color = "red";
-                } else {
-                    var other_color = "green";
-                }
-                draw_poly(this.turn_poly_coords[other_p], false, other_color, 20);
+
+                var win_ind_conv = (ps + 1)/2;
+                var color = colors[win_ind_conv];
+                var other_p = 1 - p;
+                var other_color = colors[1 - win_ind_conv];
+
+                this.labels[p].color = color;
+                this.labels[other_p].color = other_color;
+                render_list(this.labels);
+
+                // draw relevant line (break at end --> only line from relevant player)
                 for (let index = 0; index < this.max_cells[p].length - 1; index++) {
                     const c1 = this.max_cells[p][index];
                     const c2 = this.max_cells[p][index + 1];
                     draw_line([c1.pos, c2.pos], color, 20);
                 }
+
+                this.items = [];
+
+                break;
+
             }
         }
     }

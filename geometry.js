@@ -108,6 +108,13 @@ function get_text_AABB(row, n_rows, col, n_cols) {
     return [coord_start, coord_end];
 }
 
+function get_middle_coord(row, n_rows, col, n_cols) {
+    var AABB = get_text_AABB(row, n_rows, col, n_cols);
+    var x_val = AABB[0].x + (AABB[1].x - AABB[0].x)/2;
+    var y_val = AABB[0].y + (AABB[1].y - AABB[0].y)/2;
+    return {x: x_val, y: y_val};
+}
+
 function middle(val1, val2) {
     var min = Math.min(val1, val2);
     var max = Math.max(val1, val2);
@@ -359,13 +366,10 @@ function decode_coord_pairs(coords_string) {
     var pairs = coords_string.split('x');
     for (let index = 1; index < pairs.length; index++) {
         const pair = pairs[index];
-        console.log(pair)
         var pair_splitted = pair.split('y');
-        console.log(pair_splitted)
         var x = Number(pair_splitted[0]);
         var y = Number(pair_splitted[1]);
-        output.push(x);
-        output.push(y);
+        output.push([x, y]);
     }
     return output;
 }
@@ -386,18 +390,19 @@ function reload_game(name) {
     var splitted_infos = get_game_infos_ongoing_game(name);
     // assuming there are ongoing games
     var game_dims = decode_coord_pairs(splitted_infos[2]);
-    console.log(game_dims)
-    var n_hori = game_dims[1];
-    var n_vert = game_dims[0];
+    var n_hori = game_dims[0][1];
+    var n_vert = game_dims[0][0];
     // from php data set up the board of a "new" game
-    game = new Game(n_hori, n_vert, splitted_infos[0], splitted_infos[1]);
+    game = new Game(n_hori, n_vert, splitted_infos[0], splitted_infos[1], false);
     // set the stones accordingly
     var player1_stones = decode_coord_pairs(splitted_infos[4]);
     var player2_stones = decode_coord_pairs(splitted_infos[5]);
     var blocked_stones = decode_coord_pairs(splitted_infos[3]);
+    game.init_cells();
     game.set_cells(1, player1_stones);
     game.set_cells(2, player2_stones);
     game.set_cells(3, blocked_stones);
+    game.turn = Number(splitted_infos[6]) + 1;
     game_state = "game";
 }
 
@@ -423,7 +428,7 @@ function init_game(player2) {
     game_state = "game";
 }
 
-function get_game_infos_ongoing_game(name) {
+function get_game_infos_ongoing_game(name, name2=logged_in_name) {
     var first_game_match = [];
     if (logged_in_name == "") {
         return first_game_match; // no matching games
@@ -435,7 +440,7 @@ function get_game_infos_ongoing_game(name) {
             first_game_match = first_game_match_unsplit.split('|a|');
         }
     }
-    xmlhttp.open("GET", "check_ongoing_games.php?q="+name+"|"+logged_in_name, false);
+    xmlhttp.open("GET", "check_ongoing_games.php?q="+name+"|"+name2, false);
     xmlhttp.send();
     return first_game_match;
 }

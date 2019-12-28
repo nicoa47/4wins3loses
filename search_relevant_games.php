@@ -23,10 +23,12 @@ if ($result=mysqli_query($con, $sql))
     if ($pl=$obj->player_1) {
         echo $obj->player_2;
         echo "|a|";
+        continue; // make sure that same game is not listed twice
     }
     if ($pl=$obj->player_2) {
         echo $obj->player_1;
         echo "|a|";
+        continue; // make sure that same game is not listed twice
     }
     }
   // Free result set
