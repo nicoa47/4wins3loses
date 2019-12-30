@@ -307,15 +307,13 @@ class Cell {
         
     }
     clicked() {
-        // TODO store game to DB
-        // TODO eliminate the turn of other player, can only be activated after DB query
         if (this.hovered && this.state == 0) {
             this.state = game.turn;
             // append to DB --> only new stone to relevant player --> also adjust turn
             var xmlhttp = new XMLHttpRequest();
-            // xmlhttp.onreadystatechange = function() {}
             xmlhttp.open("GET", "apply_new_turn.php?q="+game.player1+"|"+game.player2+"|"+this.col_ind+"|"+this.row_ind+"|"+game.turn, false);
             xmlhttp.send();
+            // TODO HERE: set other player to unseen 
             if (game.turn == 1) {
                 game.turn = 2;
             } else {
@@ -403,7 +401,29 @@ class Game {
         this.items = [
             new MenuItem("menu", "Back to Menu", 60, [14, 16], [15, 16])
         ]
-
+        this.set_seen();
+    }
+    set_seen() {
+        // set the state in DB
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                console.log(this.responseText);
+            }
+        }
+        xmlhttp.open("GET", "set_seen.php?q="+this.player+"|"+this.player1+"|"+this.player2, false);
+        xmlhttp.send();
+    }
+    set_unseen() {
+        // set the state in DB
+        var xmlhttp = new XMLHttpRequest();
+        xmlhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                console.log(this.responseText);
+            }
+        }
+        xmlhttp.open("GET", "set_unseen.php?q="+this.player+"|"+this.player1+"|"+this.player2, false);
+        xmlhttp.send();
     }
     init_lines() {
         // init the grid coords
@@ -718,8 +738,7 @@ class Game {
             this.active = false;
             game_state = "game_finished";
             game_end = new GameEndOptions(winner);
-            // remove game from DB
-            console.log("here")
+            // remove game from DB --> but only if both player saw end state --> new flag in DB
             var xmlhttp = new XMLHttpRequest();
             xmlhttp.open("GET", "remove_finished_game.php?q="+this.player1+"|"+this.player2, false);
             xmlhttp.send();
@@ -735,12 +754,6 @@ class Game {
         this.set_cells(1, player1_stones);
         this.set_cells(2, player2_stones);
         this.turn = Number(splitted_infos[6]) + 1;
-        // TODO switch turn --> for both players?
-        // if (this.turn == 1) {
-        //     this.turn = 2;
-        // } else {
-        //     this.turn = 1;
-        // }
     }
     update() {
 
@@ -760,8 +773,6 @@ class Game {
             xmlhttp.onreadystatechange = function() {
                 if (this.readyState == 4 && this.status == 200) {
                     if (this.responseText != game.turn) {
-                        // game.turn = Number(this.responseText) + 1;
-                        // console.log(game.turn);
                         // reload the game parameters
                         game.refresh();
                     }
