@@ -17,16 +17,14 @@ $pl1 =  mysqli_real_escape_string($con, $pl1);
 $pl2 =  mysqli_real_escape_string($con, $pl2);
 
 if ($pl == '1') {
-    echo $pl1;
-    echo $pl2;
     $sql = "UPDATE fwtl_games SET player_1_seen=1 WHERE player_1='$pl1' AND player_2='$pl2'";
+    mysqli_query($con, $sql);
 }
 else {
     echo '2';
     $sql = "UPDATE fwtl_games SET player_2_seen=1 WHERE player_1='$pl1' AND player_2='$pl2'";
+    mysqli_query($con, $sql);
 }
-
-mysqli_query($con, $sql);
 
 // close
 mysqli_close($con);

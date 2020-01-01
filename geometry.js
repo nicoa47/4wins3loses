@@ -280,11 +280,10 @@ function check_log_in(name, pwd) {
 
 function add_player_to_DB(name, pwd, mail) {
     if (check_name(name) && check_pwd(pwd) && check_mail(mail)) {
+        console.log("here2")
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", "insert_new_player.php?q="+name+"|"+pwd+"|"+mail, false);
         xmlhttp.send();
-
-
     }
 }
 
@@ -406,25 +405,20 @@ function reload_game(name) {
     game_state = "game";
 }
 
-function init_game(player2) {
+function init_game(player2, switch_turns=false, player1=logged_in_name) {
     // get the current values set in options
     var n_hori = options.items[1].label;
     var n_vert = options.items[3].label;
     var dims = [[n_hori, n_vert]];
     var coord_pairs = encode_coord_pairs(dims);
     // TODO generate blocked cells
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.onreadystatechange = function() {
-        console.log(this.readyState, this.status)
-        if (this.readyState == 4 && this.status == 200) {
-            console.log(this.responseText)
-        }
-    }
-    // TODO add blocked stones in here
-    xmlhttp.open("GET", "add_to_games.php?q="+logged_in_name+"|"+player2+"|"+coord_pairs+"|", false);
-    xmlhttp.send();
+    DB_access("add_to_games", [player1, player2, coord_pairs]);
     // init game
-    game = new Game(n_hori, n_vert, logged_in_name, player2);
+    game = new Game(n_hori, n_vert, player1, player2);
+    // change specifics
+    if (switch_turns) {
+        game.turn = 2;
+    }
     game_state = "game";
 }
 
@@ -443,4 +437,29 @@ function get_game_infos_ongoing_game(name, name2=logged_in_name) {
     xmlhttp.open("GET", "check_ongoing_games.php?q="+name+"|"+name2, false);
     xmlhttp.send();
     return first_game_match;
+}
+
+function DB_access(php_name, inputs, output=false) {
+    var xmlhttp = new XMLHttpRequest();
+    var return_text;
+    if (output) {
+        xmlhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                return_text = this.responseText;
+            }
+        }
+    }
+    var input_str = "";
+    if (inputs.length > 0) {
+        input_str = "?q=";
+        for (let index = 0; index < inputs.length; index++) {
+            input_str += inputs[index];
+            input_str += "|";
+        }
+    }
+    xmlhttp.open("GET", php_name+".php"+input_str, false);
+    xmlhttp.send();
+    if (output) {
+        return return_text;
+    }
 }

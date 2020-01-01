@@ -22,8 +22,8 @@ class MenuItem {
                 game_state = "reg_log_in";
                 reg_log_in_screen.goal_game_state = "search_player";
             } else if (this.target_state == "search_game" && logged_in_name == "") {
-                game_state = "reg_log_in";
-                reg_log_in_screen.goal_game_state = "search_game";
+                log_in_screen = new LogInScreen("search_game");
+                game_state = "log_in";
             } else if (this.target_state == "register") {
                 register_screen = new RegisterScreen(reg_log_in_screen.goal_game_state);
                 game_state = "register";
@@ -70,7 +70,7 @@ class SpecialFunctionItem extends MenuItem {
                 var mail = register_screen.input_items[2].input_text.label;
                 // check the data
                 register_screen.valid_name = check_name(name);
-                register_screen.valid_pwd = check_name(pwd);
+                register_screen.valid_pwd = check_pwd(pwd);
                 register_screen.valid_mail = check_mail(mail);
                 // all correct: add to DB
                 add_player_to_DB(name, pwd, mail);
@@ -88,7 +88,7 @@ class SpecialFunctionItem extends MenuItem {
                 var mail = register_screen.input_items[2].input_text.label;
                 // check the data
                 register_screen.valid_name = check_name(name);
-                register_screen.valid_pwd = check_name(pwd);
+                register_screen.valid_pwd = check_pwd(pwd);
                 register_screen.valid_mail = check_mail(mail);
                 // all correct: add to DB
                 add_player_to_DB(name, pwd, mail);
@@ -142,6 +142,19 @@ class SpecialFunctionItem extends MenuItem {
                 var player_name = this.label;
                 // get the game infos from DB
                 reload_game(player_name);
+            }
+            if (this.func == "challenge_player") {
+                console.log("challenged")
+                // get the player2 name
+                if (game.player == 1) {
+                    var player_name = game.player2;
+                } else {
+                    var player_name = game.player1;
+                }
+                // remove the active game (if still existent)
+                DB_access("remove_finished_game", [this.player1, this.player2]);
+                // init games based on options and add to DB
+                init_game(player_name, true);
             }
         }
     }
@@ -308,17 +321,24 @@ class Cell {
     }
     clicked() {
         if (this.hovered && this.state == 0) {
+
+            // set the occupying player for cell
             this.state = game.turn;
+
             // append to DB --> only new stone to relevant player --> also adjust turn
-            var xmlhttp = new XMLHttpRequest();
-            xmlhttp.open("GET", "apply_new_turn.php?q="+game.player1+"|"+game.player2+"|"+this.col_ind+"|"+this.row_ind+"|"+game.turn, false);
-            xmlhttp.send();
-            // TODO HERE: set other player to unseen 
-            if (game.turn == 1) {
-                game.turn = 2;
-            } else {
+            DB_access("apply_new_turn", [game.player1, game.player2, this.col_ind, this.row_ind, game.turn]);
+
+            // adjust game turn
+            if (game.turn == 2) {
                 game.turn = 1;
+            } else {
+                game.turn = 2;
             }
+
+            // set other player to unseen
+            DB_access("set_seen", [game.player, game.player1, game.player2]);
+            DB_access("set_unseen", [game.player, game.player1, game.player2]);
+
         }
     }
     update() {
@@ -351,6 +371,7 @@ class Cell {
 
 class Game {
     constructor(n_hori, n_vert, player1, player2, newgame=true) {
+
         this.n_hori = n_hori;
         this.n_vert = n_vert;
 
@@ -401,29 +422,9 @@ class Game {
         this.items = [
             new MenuItem("menu", "Back to Menu", 60, [14, 16], [15, 16])
         ]
-        this.set_seen();
-    }
-    set_seen() {
-        // set the state in DB
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = function() {
-            if (this.readyState == 4 && this.status == 200) {
-                console.log(this.responseText);
-            }
-        }
-        xmlhttp.open("GET", "set_seen.php?q="+this.player+"|"+this.player1+"|"+this.player2, false);
-        xmlhttp.send();
-    }
-    set_unseen() {
-        // set the state in DB
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.onreadystatechange = function() {
-            if (this.readyState == 4 && this.status == 200) {
-                console.log(this.responseText);
-            }
-        }
-        xmlhttp.open("GET", "set_unseen.php?q="+this.player+"|"+this.player1+"|"+this.player2, false);
-        xmlhttp.send();
+
+        DB_access("set_seen", [this.player, this.player1, this.player2]);
+
     }
     init_lines() {
         // init the grid coords
@@ -736,13 +737,23 @@ class Game {
         }
         if (this.player_state[0] != 0 || this.player_state[1] != 0) {
             this.active = false;
+            this.refresh(); // for other player to see result
             game_state = "game_finished";
             game_end = new GameEndOptions(winner);
-            // remove game from DB --> but only if both player saw end state --> new flag in DB
-            var xmlhttp = new XMLHttpRequest();
-            xmlhttp.open("GET", "remove_finished_game.php?q="+this.player1+"|"+this.player2, false);
-            xmlhttp.send();
+
+            // only remove game from DB if state of both players is seen
+            // the case if game is reloaded
+            var both_seen = DB_access("check_both_seen", [this.player1, this.player2], true);
+            if (both_seen=="true") {
+                DB_access("remove_finished_game", [this.player1, this.player2]);
+            }
         }
+    }
+    reset() {
+        this.active = true;
+        this.max_nums = [0, 0];
+        this.max_cells = [[], []];
+        this.player_state = [0, 0]; // -1: lose, 1: win
     }
     refresh() {
         // reload the game parameters
@@ -757,29 +768,28 @@ class Game {
     }
     update() {
 
-        // only activate cells if it is your turn
-        if (this.turn == this.player) {
-            for (let i = 0; i < this.cells.length; i++) {
-                for (let ii = 0; ii < this.cells[i].length; ii++) {
-                    this.cells[i][ii].update();
-                }
-            }
-        }
-        // otherwise, periodically check database changes
-        else {
-            // TODO: add periodicism (else probably too computationally intensive)
-            // timer as in Beste-Spiel
-            var xmlhttp = new XMLHttpRequest();
-            xmlhttp.onreadystatechange = function() {
-                if (this.readyState == 4 && this.status == 200) {
-                    if (this.responseText != game.turn) {
-                        // reload the game parameters
-                        game.refresh();
+        // only activate cells if game is active
+        if (this.active) {
+            // only activate cells if it is your turn
+            if (this.turn == this.player) {
+                for (let i = 0; i < this.cells.length; i++) {
+                    for (let ii = 0; ii < this.cells[i].length; ii++) {
+                        this.cells[i][ii].update();
                     }
                 }
             }
-            xmlhttp.open("GET", "check_if_turn_changed.php?q="+this.player1+"|"+this.player2, false);
-            xmlhttp.send();
+
+            // otherwise, periodically check database changes
+            else {
+                // TODO: add periodicism (else probably too computationally intensive)
+                // --> timer as in Beste-Spiel
+                var turn_comp = DB_access("check_if_turn_changed", [this.player1, this.player2], true);
+                if (turn_comp != this.turn - 1) {
+                    this.refresh(); // reload the game parameters, set current player as active
+                    // based on that, check if there is a win/lose
+                    // this.check_win_lose(); // TODO stop turns if it happens
+                }
+            }
         }
 
         for (let i = 0; i < this.items.length; i++) {
@@ -791,6 +801,14 @@ class Game {
 
         // based on that, check if there is a win/lose
         this.check_win_lose(); // TODO stop turns if it happens
+
+        // wait for challenging if won...
+        if (this.player_state[this.player - 1] == 1 || this.player_state[1 - (this.player - 1)] == -1) {
+            var new_game_check = DB_access("check_ongoing_games", [this.player1, this.player2]);
+            if (new_game_check) {
+                this.refresh();
+            }
+        }
 
     }
     render() {
@@ -865,18 +883,74 @@ class Game {
 class GameEndOptions {
     constructor(winner_ind) {
         this.winner_ind = winner_ind;
+
+        // get loser ind
         if (this.winner_ind == 0) {
             this.loser_ind = 1;
         } else {
             this.loser_ind = 0;
         }
+
+        // set items
         this.items = [
             new MenuItem("menu", "To Menu",               80, [9, 10], [1 + 4*this.loser_ind, 5]),
-            new MenuItem("init_game", "Challenge",        80, [9, 10], [1 + 4*this.winner_ind, 5]),
         ];
+        // only allow losing party to challenge winner again
+        if ((1 - this.winner_ind) + 1 == game.player) {
+            this.items.push(new SpecialFunctionItem("challenge_player", "Challenge", 80, [9, 10], [1 + 4*this.winner_ind, 5]));
+        }
+
+        // player has definitely seen game state
+        DB_access("set_seen", [game.player, game.player1, game.player2]);
+
+        // only remove game from DB if state of both players is seen
+        this.game_removed = false;
+        var both_seen = DB_access("check_both_seen", [this.player1, this.player2], true);
+        if (both_seen=="true") {
+            this.game_removed = true;
+            DB_access("remove_finished_game", [this.player1, this.player2]);
+        }
+
+        this.counter = 0;
     }
     update() {
+
+        this.counter++;
+
+        // update items
         update_list(this.items);
+
+        if (this.counter == 100) {
+            this.counter = 0;
+
+            // check for game removal
+            if (!this.game_removed) {
+                var both_seen = DB_access("check_both_seen", [game.player1, game.player2], true);
+                var db_check = DB_access("check_new_game", [game.player1, game.player2], true);
+
+                if (both_seen=="true" && db_check.length > 1) {
+                    // len > 1 because there should be stones in finished game
+                    this.game_removed = true;
+                    DB_access("remove_finished_game", [game.player1, game.player2]);
+                }
+            }
+
+            // check DB access if new game (winning party)
+            if (this.winner_ind + 1 == game.player) {
+                var db_check = DB_access("check_new_game", [game.player1, game.player2], true);
+                if (db_check.length == 1) {
+                    // len 1 because: see php file (if a game is found, one char is echoed)
+                    game.reset();       // game is not lost/won but active
+                    if (game.player == 1) {
+                        game.player1 = game.player2;
+                        game.player2 = logged_in_name;
+                    }
+                    game.player = 2;
+                    game.refresh();     // load game parameters from DB
+                    game_state = "game";
+                }
+            }
+        }
     }
     render() {
         render_list(this.items);
