@@ -145,9 +145,27 @@ function update_list(l) {
     }
 }
 
+function update_llist(ll) {
+    // list of lists
+    for (let i = 0; i < ll.length; i++) {
+        for (let j = 0; j < ll[i].length; j++) {
+            ll[i][j].update();
+        }
+    }
+}
+
 function render_list(l) {
     for (let i = 0; i < l.length; i++) {
         l[i].render();
+    }
+}
+
+function render_llist(ll) {
+    // list of lists
+    for (let i = 0; i < ll.length; i++) {
+        for (let j = 0; j < ll[i].length; j++) {
+            ll[i][j].render();
+        }
     }
 }
 
@@ -412,7 +430,12 @@ function init_game(player2, switch_turns=false, player1=logged_in_name) {
     var dims = [[n_hori, n_vert]];
     var coord_pairs = encode_coord_pairs(dims);
     // TODO generate blocked cells
-    DB_access("add_to_games", [player1, player2, coord_pairs]);
+    if (switch_turns) {
+        var turn = 1;
+    } else {
+        var turn = 0;
+    }
+    DB_access("add_to_games", [player1, player2, coord_pairs, "", turn]);
     // init game
     game = new Game(n_hori, n_vert, player1, player2);
     // change specifics

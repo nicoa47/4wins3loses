@@ -16,6 +16,7 @@ $na1 = $a[0];
 $na2 = $a[1];
 $di = $a[2];
 $oc = $a[3];
+$tu = $a[4];
 
 echo $q;
 
@@ -24,9 +25,10 @@ $na1    = mysqli_real_escape_string($con, $na1);
 $na2    = mysqli_real_escape_string($con, $na2);
 $di     = mysqli_real_escape_string($con, $di );
 $oc     = mysqli_real_escape_string($con, $oc );
+$tu     = mysqli_real_escape_string($con, $tu );
 
 // SQL code
-$sql = "INSERT INTO fwtl_games(player_1,player_2,game_dims,occupied_stone_inds,player_1_stone_inds,player_2_stone_inds,turn) VALUES('$na1', '$na2', '$di', '$oc', '', '', 0)";
+$sql = "INSERT INTO fwtl_games(player_1,player_2,game_dims,occupied_stone_inds,player_1_stone_inds,player_2_stone_inds,turn) VALUES('$na1', '$na2', '$di', '$oc', '', '', '$tu')";
 
 // save to db
 mysqli_query($con, $sql);
