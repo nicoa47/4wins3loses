@@ -7,7 +7,6 @@ var game_state = "menu";
 var n_hori = {name: 'hori', num: 8};
 var n_vert = {name: 'vert', num: 8};
 var logged_in_name = ""; // empty if not logged in
-var logged_in_name = ""; // TODO change back
 var upper = false; // flag to determine whether shift is pressed
 var alt = false; // flag to determine whether alt is pressed (for @)
 
@@ -18,6 +17,7 @@ var register_screen;
 var log_in_screen;
 var rules = new Rules();
 var options = new Options();
+var highscores = new Highscores();
 
 // classes only instantiated after clicking respective menu option
 var game;
@@ -113,6 +113,9 @@ function update() {
     else if (game_state == "options") {
         options.update();
     }
+    else if (game_state == "highscores") {
+        highscores.update();
+    }
     // draw everything
     draw_all();
     // keep animation going
@@ -155,6 +158,9 @@ function draw_all() {
     }
     else if (game_state == "options") {
         options.render();
+    }
+    else if (game_state == "highscores") {
+        highscores.render();
     }
 }
 
@@ -212,27 +218,39 @@ function keydown(e) {
                 if (type_case == "enter") {
                     // test whether valid
                     // TODO remove hardcoding
-                    if (index == 1) {
-                        var name = register_screen.input_items[1].input_text.label;
+                    if (index == 0) {
+                        var name = register_screen.input_items[0].input_text.label;
                         register_screen.valid_name = check_name(name);
                         if (register_screen.valid_name) {
                             register_screen.input_items[index].active = false;
                             register_screen.input_items[index + 1].active = true;
                         }
                     }
-                    if (index == 2) {
-                        var pwd = register_screen.input_items[2].input_text.label;
+                    if (index == 1) {
+                        var pwd = register_screen.input_items[1].input_text.label;
                         register_screen.valid_pwd = check_pwd(pwd);
                         if (register_screen.valid_pwd) {
                             register_screen.input_items[index].active = false;
                             register_screen.input_items[index + 1].active = true;
                         }
                     }
-                    if (index == 3) {
-                        var mail = register_screen.input_items[3].input_text.label;
+                    if (index == 2) {
+                        var mail = register_screen.input_items[2].input_text.label;
                         register_screen.valid_mail = check_mail(mail);
                         if (register_screen.valid_mail) {
                             register_screen.input_items[index].active = false;
+
+                            // last option: go to next screen
+                            var name = register_screen.input_items[0].input_text.label;
+                            var pwd =  register_screen.input_items[1].input_text.label;
+                            var mail = register_screen.input_items[2].input_text.label;
+                            add_player_to_DB(name, pwd, mail);
+                            if (register_screen.goal_state == "search_player") {
+                                logged_in_proceed(name, "search_player");
+                            } else {
+                                logged_in_proceed(name, "search_game");
+                            }
+
                         }
                     }
                 }
@@ -276,18 +294,33 @@ function keydown(e) {
                     // test whether valid
                     // TODO remove hardcoding
                     if (index == 0) {
-                        var name = log_in_screen.input_items[1].input_text.label;
-                        log_in_screen.valid_name = check_name(name);
+                        var name = log_in_screen.input_items[0].input_text.label;
+                        log_in_screen.valid_name = check_name(name, true);
                         if (log_in_screen.valid_name) {
                             log_in_screen.input_items[index].active = false;
                             log_in_screen.input_items[index + 1].active = true;
                         }
                     }
                     if (index == 1) {
-                        var pwd = log_in_screen.input_items[2].input_text.label;
+                        var pwd = log_in_screen.input_items[1].input_text.label;
                         log_in_screen.valid_pwd = check_pwd(pwd);
                         if (log_in_screen.valid_pwd) {
                             log_in_screen.input_items[index].active = false;
+
+                            // last option: go to next screen if valid
+                            var name = log_in_screen.input_items[0].input_text.label;
+                            var pwd = log_in_screen.input_items[1].input_text.label;
+                            var correct = check_log_in(name, pwd);
+                            log_in_screen.log_in_correct = correct;
+                            if (correct) {
+                                if (log_in_screen.goal_state == "search_player") {
+                                    log_in(name);
+                                    logged_in_proceed(name, "search_player");
+                                } else {
+                                    log_in(name, "game");
+                                    logged_in_proceed(name, "search_game");
+                                }
+                            }
                         }
                     }
                 }
@@ -412,6 +445,9 @@ function mousedown(e) {
         }
         else if (game_state == "options") {
             clicked_on_item(options.items);
+        }
+        else if (game_state == "highscores") {
+            clicked_on_item(highscores.items);
         }
     }
 }

@@ -22,47 +22,47 @@ $sql = "SELECT * FROM fwtl_games ORDER BY player_1";
 
 if ($result=mysqli_query($con, $sql))
   {
-  $obj = mysqli_fetch_object($result);
-  for ($i = 1; $i <= $result->num_rows; $i++)
-    {
+  while ($row = $result->fetch_assoc()) {
+  // while ($row = $result->fetch_assoc()) {
+    // echo '$row['name']';
         // find first instance of game
-        if ($pl1=$obj->player_1) {
-            if ($pl2=$obj->player_2) {
+        if ($pl1==$row['player_1']) {
+            if ($pl2==$row['player_2']) {
               // get all data
-              echo $obj->player_1;
+              echo $row['player_1'];
               echo "|a|";
-              echo $obj->player_2;
+              echo $row['player_2'];
               echo "|a|";
-              echo $obj->game_dims;
+              echo $row['game_dims'];
               echo "|a|";
-              echo $obj->occupied_stone_inds;
+              echo $row['occupied_stone_inds'];
               echo "|a|";
-              echo $obj->player_1_stone_inds;
+              echo $row['player_1_stone_inds'];
               echo "|a|";
-              echo $obj->player_2_stone_inds;
+              echo $row['player_2_stone_inds'];
               echo "|a|";
-              echo $obj->turn;
-            break;
+              echo $row['turn'];
+              break;
             }
         }
 
-        else if ($pl1=$obj->player_2) {
-          if ($pl2=$obj->player_1) {
-            // get all data
-            echo $obj->player_1;
-            echo "|a|";
-            echo $obj->player_2;
-            echo "|a|";
-            echo $obj->game_dims;
-            echo "|a|";
-            echo $obj->occupied_stone_inds;
-            echo "|a|";
-            echo $obj->player_1_stone_inds;
-            echo "|a|";
-            echo $obj->player_2_stone_inds;
-            echo "|a|";
-            echo $obj->turn;
-          break;
+        else if ($pl1==$row['player_2']) {
+          if ($pl2==$row['player_1']) {
+              // get all data
+              echo $row['player_1'];
+              echo "|a|";
+              echo $row['player_2'];
+              echo "|a|";
+              echo $row['game_dims'];
+              echo "|a|";
+              echo $row['occupied_stone_inds'];
+              echo "|a|";
+              echo $row['player_1_stone_inds'];
+              echo "|a|";
+              echo $row['player_2_stone_inds'];
+              echo "|a|";
+              echo $row['turn'];
+              break;
           }
         }
 

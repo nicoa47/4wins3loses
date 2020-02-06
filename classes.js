@@ -144,7 +144,6 @@ class SpecialFunctionItem extends MenuItem {
                 reload_game(player_name);
             }
             if (this.func == "challenge_player") {
-                console.log("other player challenged")
 
                 // get the player2 name
                 // player who won is on the right side
@@ -160,6 +159,14 @@ class SpecialFunctionItem extends MenuItem {
                 DB_access("remove_finished_game", [this.player1, this.player2]);
                 // init games based on options and add to DB
                 init_game(player2_name, true, player1_name);
+            }
+            if (this.func == "give_up") {
+                if (game.turn == game.player) {
+                    DB_access("give_up", [game.player, game.player1, game.player2]);
+                    game.refresh();
+                    // -1: no cells are set
+                    game.apply_action(-1, -1);
+                }
             }
         }
     }
@@ -186,7 +193,7 @@ class Menu {
             new MenuItem("search_game",       "CHOOSE GAME",      70,  [4, 7]),
             new MenuItem("rules",           "RULES",            70,  [5, 7]),
             new MenuItem("options",         "OPTIONS",          70,  [6, 7]),
-            new MenuItem("menu",            "HIGHSCORES",       70,  [7, 7]),
+            new MenuItem("highscores",      "HIGHSCORES",       70,  [7, 7]),
         ];
     }
     update() {
@@ -213,6 +220,28 @@ class Rules {
     }
     render() {
         render_list(this.lines);
+    }
+}
+
+class Highscores {
+    constructor() {
+        this.items = [
+            new MenuItem("menu", "Go Back to Menu", 60, [9, 10], [1, 1]),
+        ];
+        this.counter = 0;
+    }
+    update() {
+        update_list(this.items);
+        this.counter++;
+        if (this.counter > 100) {
+            this.counter = 0;
+            // get the 10 highest scoring players
+            var hs_str = DB_access("get_highscores", [], true);
+            console.log(hs_str);
+        }
+    }
+    render() {
+        render_list(this.items);
     }
 }
 
@@ -329,20 +358,8 @@ class Cell {
 
             // set the occupying player for cell
             this.state = game.turn;
-
-            // append to DB --> only new stone to relevant player --> also adjust turn
-            DB_access("apply_new_turn", [game.player1, game.player2, this.col_ind, this.row_ind, game.turn]);
-
-            // adjust game turn
-            if (game.turn == 2) {
-                game.turn = 1;
-            } else {
-                game.turn = 2;
-            }
-
-            // set other player to unseen
-            DB_access("set_seen", [game.player, game.player1, game.player2]);
-            DB_access("set_unseen", [game.player, game.player1, game.player2]);
+            // all necessary adjustments of game
+            game.apply_action(this.col_ind, this.row_ind);
 
         }
     }
@@ -410,8 +427,9 @@ class Game {
 
         // menu options
         this.items = [
-            new MenuItem("menu", "Back to Menu", 60, [14, 16], [15, 16])
+            new MenuItem("menu", "Back to Menu", 60, [14, 16], [15, 16]),
         ]
+        this.give_up_option = false;
 
         DB_access("set_seen", [this.player, this.player1, this.player2]);
 
@@ -423,7 +441,7 @@ class Game {
         this.cells = [];
 
         // get the step size
-        this.step_size = canv_h/Math.max(this.n_hori + 2, this.n_vert + 2);
+        this.step_size = canv_h/Math.max(Number(this.n_hori) + 2, Number(this.n_vert) + 2);
         this.start_left = (canv_w - (this.step_size*this.n_vert))/2;
         this.end_right = this.start_left + this.n_vert*this.step_size;
         this.start_top = (canv_h - (this.step_size*this.n_hori))/2;
@@ -453,6 +471,32 @@ class Game {
                 this.cells[i].push(new Cell(i, ii, l, r, t, b));
             }
         }
+    }
+    count_cells(player) {
+        var counter = 0;
+        for (let i = 0; i < this.cells.length; i++) {
+            for (let ii = 0; ii < this.cells[i].length; ii++) {
+                const cell = this.cells[i][ii];
+                if (cell.state == player) {
+                    counter++;
+                }
+            }
+        }
+        return counter;
+    }
+    apply_action(col_ind, row_ind) {
+        // append to DB --> only new stone to relevant player --> also adjust turn
+        DB_access("apply_new_turn", [this.player1, this.player2, col_ind, row_ind, this.turn]);
+        // adjust this turn
+        if (this.turn == 2) {
+            this.turn = 1;
+        } else {
+            this.turn = 2;
+        }
+
+        // set other player to unseen
+        DB_access("set_seen", [this.player, this.player1, this.player2]);
+        DB_access("set_unseen", [this.player, this.player1, this.player2]);
     }
     set_cells(type_ind, pos_list) {
 
@@ -704,8 +748,18 @@ class Game {
         this.search_diag(2);
 
     }
+    apply_game_end(winner) {
+        this.active = false;
+        // if (this.player_state[this.player - 1] == 0) {
+        //     this.refresh(); // for other player to see result
+        // }
+        game_state = "game_finished";
+        game_end = new GameEndOptions(winner);
+    }
     check_win_lose() {
-        var winner;
+        var winner = -1;
+
+        // set player state by counting 
         if (this.max_nums[0] == 3) {
             // player 1 loses
             this.player_state[0] = -1;
@@ -726,19 +780,18 @@ class Game {
             this.player_state[1] = 1;
             winner = 1;
         }
-        if (this.player_state[0] != 0 || this.player_state[1] != 0) {
-            this.active = false;
-            this.refresh(); // for other player to see result
-            game_state = "game_finished";
-            game_end = new GameEndOptions(winner);
 
-            // only remove game from DB if state of both players is seen
-            // TODO error here
-            // the case if game is reloaded
-            // var both_seen = DB_access("check_both_seen", [this.player1, this.player2], true);
-            // if (both_seen=="true") {
-            //     DB_access("remove_finished_game", [this.player1, this.player2]);
-            // }
+        // definitely a winner/loser if following is true
+        if (this.player_state[0] != 0 || this.player_state[1] != 0) {
+            if (winner < 0) { // this means, some one gave up
+                if (this.player_state[0] == -1) {
+                    this.apply_game_end(1); // player two wins (player 1 gave up)
+                } else {
+                    this.apply_game_end(0); // player one wins (player 2 gave up)
+                }
+            } else { // normal case: winner/loser determined by counting cells
+                this.apply_game_end(winner);
+            }
         }
     }
     reset() {
@@ -757,15 +810,34 @@ class Game {
         this.player_state = [0, 0]; // -1: lose, 1: win
     }
     refresh() {
+
         // reload the game parameters
         var splitted_infos = get_game_infos_ongoing_game(this.player1, this.player2);
         // set the stones accordingly
         var player1_stones = decode_coord_pairs(splitted_infos[4]);
         var player2_stones = decode_coord_pairs(splitted_infos[5]);
-        this.init_cells();
-        this.set_cells(1, player1_stones);
-        this.set_cells(2, player2_stones);
-        this.turn = Number(splitted_infos[6]) + 1;
+
+        // check whether one has given up
+        if (player1_stones.length > 0 && player1_stones[player1_stones.length - 1][1].endsWith("gu")) {
+            this.player_state[0] = -1;
+            var stones_p1_sub = splitted_infos[4].slice(-2, -1);
+            var player1_stones = decode_coord_pairs(stones_p1_sub);
+            this.apply_game_end(1);
+        }
+        else if (player2_stones.length > 0 && player2_stones[player2_stones.length - 1][1].endsWith("gu")) {
+            this.player_state[1] = -1;
+            var stones_p2_sub = splitted_infos[5].slice(-2, -1);
+            var player2_stones = decode_coord_pairs(stones_p2_sub);
+            this.apply_game_end(0);
+        }
+
+        // otherwise proceed normally
+        else {
+            this.init_cells();
+            this.set_cells(1, player1_stones);
+            this.set_cells(2, player2_stones);
+            this.turn = Number(splitted_infos[6]) + 1;
+        }
     }
     update() {
 
@@ -773,8 +845,16 @@ class Game {
         if (this.active) {
             // only activate cells if it is your turn
             if (this.turn == this.player) {
+                if (!this.give_up_option && this.count_cells(this.player) > 0) {
+                    this.give_up_option = true;
+                    this.items.push(new SpecialFunctionItem("give_up", "Give Up", 60, [14, 16], [2, 16]));
+                }
                 update_llist(this.cells);
             } else {
+                if (this.give_up_option) {
+                    this.give_up_option = false;
+                    this.items.pop();
+                }
                 // otherwise, periodically check database changes
                 this.counter++;
                 if (this.counter > 100) {
@@ -796,14 +876,6 @@ class Game {
 
         // based on that, check if there is a win/lose
         this.check_win_lose(); // TODO stop turns if it happens
-
-        // wait for challenging if won...
-        // if (this.player_state[this.player - 1] == 1 || this.player_state[1 - (this.player - 1)] == -1) {
-        //     var new_game_check = DB_access("check_ongoing_games", [this.player1, this.player2]);
-        //     if (new_game_check) {
-        //         this.refresh();
-        //     }
-        // }
 
     }
     render() {
@@ -869,6 +941,9 @@ class Game {
     }
 }
 
+// TODO change in ALL relevant PHP files reg. SQL game selections:
+// agnostic to player order (player1, player2)
+
 class GameEndOptions {
     constructor(winner_ind) {
         this.winner_ind = winner_ind;
@@ -885,12 +960,15 @@ class GameEndOptions {
             new MenuItem("menu", "To Menu",               80, [9, 10], [1 + 4*this.loser_ind, 5]),
         ];
         // only allow losing party to challenge winner again
-        if ((1 - this.winner_ind) + 1 == game.player) {
-            this.items.push(new SpecialFunctionItem("challenge_player", "Challenge", 80, [9, 10], [1 + 4*this.winner_ind, 5]));
+        // only allow to challenge if player has seen end screen
+        this.challenge_possible = false;
+        if (this.loser_ind + 1 == game.player) {
+            this.check_challenge_possible();
         }
 
         // player has definitely seen game state
         DB_access("set_seen", [game.player, game.player1, game.player2]);
+        DB_access("set_end", [game.player, game.player1, game.player2]);
 
         // only remove game from DB if state of both players is seen
         this.game_removed = false;
@@ -898,10 +976,19 @@ class GameEndOptions {
 
         this.counter = 0;
     }
+    check_challenge_possible() {
+        // var end_check = DB_access("check_end_seen", [game.player1, game.player2], true);
+        var check_game = DB_access("check_game_exists", [game.player1, game.player2], true);
+        console.log(check_game)
+        if (check_game == "false") { // means that both players have seen end state, therefore game not in DB anymore
+            // TODO possible overlap if other person challenges first - give someone priority
+            this.challenge_possible = true;
+            this.items.push(new SpecialFunctionItem("challenge_player", "Challenge", 80, [9, 10], [1 + 4*this.winner_ind, 5]));
+        }
+    }
     check_remove_game() {
-        var both_seen = DB_access("check_both_seen", [game.player1, game.player2], true);
-        var db_check = DB_access("check_new_game", [game.player1, game.player2], true);
-        if (both_seen=="true" && db_check.length > 1) {
+        var end_check = DB_access("check_end_seen", [game.player1, game.player2], true);
+        if (end_check=="true") {
             // len > 1 because there should be stones in finished game
             this.game_removed = true;
             DB_access("remove_finished_game", [game.player1, game.player2]);
@@ -917,9 +1004,9 @@ class GameEndOptions {
         game.player = 2;        // winner always right
     }
     check_challenged() {
-        var db_check = DB_access("check_new_game", [game.player1, game.player2], true);
-        if (db_check.length == 1) {
-            // len 1 because: see php file (if a game is found, one char is echoed)
+        var end_check = DB_access("check_end_seen", [game.player1, game.player2], true);
+        var empty_check = DB_access("check_empty", [game.player1, game.player2], true);
+        if (end_check == "true" || empty_check == "true") {
             this.set_players_winning_party();
             game.reset();       // game is not lost/won anymore but active again
             game.refresh();     // load game parameters from DB (empty board)
@@ -945,6 +1032,13 @@ class GameEndOptions {
             // check DB access if new game (winning party)
             if (this.winner_ind + 1 == game.player) {
                 this.check_challenged();
+            }
+
+            // check DB if other player has seen game end state
+            if (this.loser_ind + 1 == game.player) {
+                if (!this.challenge_possible) {
+                    this.check_challenge_possible();
+                }
             }
         }
     }
@@ -974,6 +1068,7 @@ class RegLogInScreen {
 
 class RegisterScreen {
     constructor(goal_state) {
+        this.goal_state = goal_state;
         this.items = [
             new StaticText(game_state, "Register New Player",       70, [1, 5], [1, 1]),
             new MenuItem("menu", "Back to Menu",                    70, [5, 5], [1, 2]),
@@ -988,6 +1083,7 @@ class RegisterScreen {
             new TextInput("Enter Password",                         60, [3, 5], true),
             new TextInput("Enter E-Mail",                           60, [4, 5], false, true),
         ]
+        this.input_items[0].active = true;
         this.active_input_ind = -1; // -1 means zero
         this.text_inputs_active = [0, 0, 0]; // keeping track that only one input is active at a time
         this.valid_name = true;
@@ -1056,6 +1152,7 @@ class RegisterScreen {
 
 class LogInScreen {
     constructor(goal_state) {
+        this.goal_state = goal_state;
         this.items = [
             new StaticText(game_state, "Log In to your Account",   70, [1, 5], [1, 1]),
             new SpecialFunctionItem("send_pwd", "Forgot Password", 60, [4, 5], [1, 2]),
@@ -1070,8 +1167,11 @@ class LogInScreen {
             new TextInput("Your Name",                             60, [2, 5]),
             new TextInput("Your Password",                         60, [3, 5], true),
         ]
+        this.input_items[0].active = true;
         this.email_sent_note = false;
         this.log_in_correct = true;
+        this.valid_name = true;
+        this.valid_pwd = true;
         this.text_inputs_active = [0, 0]; // keeping track that only one input is active at a time
         this.active_input_ind = -1; // -1: none active
     }
@@ -1116,6 +1216,16 @@ class LogInScreen {
     render() {
         render_list(this.items);
         render_list(this.input_items);
+        if (!this.valid_name) {
+            var name_feedback = new StaticText(game_state, "Name does not exist", 60, [4, 10], [1, 1]);
+            name_feedback.color = "rgba(220, 0, 0, 1)";
+            name_feedback.render();
+        }
+        if (!this.valid_pwd) {
+            var pwd_feedback = new StaticText(game_state, "Password is too short", 60, [9, 15], [1, 1]);
+            pwd_feedback.color = "rgba(220, 0, 0, 1)";
+            pwd_feedback.render();
+        }
         // notification that email was sent
         if (this.email_sent_note) {
             var mail_sent = new StaticText(game_state, "feature not implemented yet", 60, [4, 5], [2, 2]);
@@ -1238,7 +1348,7 @@ class SearchPlayerInput {
         // initiate players (different whether initiating game or searching challengers)
         if (this.sf == "start_game_search_players") {
             // get all names except oneself
-            this.current_names_list = get_names_pwds(true)[0];
+            this.current_names_list = get_names_pwds(true, true)[0];
             if (this.initial_names_list.length == 0) {
                 this.initial_names_list = this.current_names_list;
             }

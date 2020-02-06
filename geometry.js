@@ -199,49 +199,42 @@ function hide_text(text) {
     return hidden;
 }
 
-function get_names_pwds(remove_self=false) {
+function get_names_pwds(remove_self=false, remove_existing_games=false) {
     var all_names = [];
     var all_pwds = [];
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            var all_names_pwds_unsplit = this.responseText;
-            var all_name_pwd_pairs = all_names_pwds_unsplit.split("|b|");
-            for (let index = 0; index < all_name_pwd_pairs.length; index++) {
-                const pair = all_name_pwd_pairs[index];
-                var name = pair.split("|a|")[0];
-                var pwd = pair.split("|a|")[1];
-                if (remove_self && name == logged_in_name) {
-                    continue;
-                }
-                if (name != "") {
-                    all_names.push(name);
-                    all_pwds.push(pwd);
-                }
+    var all_names_pwds_unsplit = DB_access("check_if_name_exists", [], true);
+    var all_name_pwd_pairs = all_names_pwds_unsplit.split("|b|");
+    for (let index = 0; index < all_name_pwd_pairs.length; index++) {
+        const pair = all_name_pwd_pairs[index];
+        var name = pair.split("|a|")[0];
+        var pwd = pair.split("|a|")[1];
+        if (remove_self && name == logged_in_name) {
+            continue;
+        }
+        if (remove_existing_games) {
+            // look at DB in games
+            var exists = DB_access("check_game_exists", [logged_in_name, name], true);
+            if (exists == "true") {
+                continue;
             }
         }
+        if (name != "") {
+            all_names.push(name);
+            all_pwds.push(pwd);
+        }
     }
-    xmlhttp.open("GET", "check_if_name_exists.php", false);
-    xmlhttp.send();
     return [all_names, all_pwds];
 }
 
 function find_all_relevant_games() {
     // retrieve games from DB where current logged in name is present
-    var all_names = [];
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            var all_names_unsplit = this.responseText;
-            all_names = all_names_unsplit.split("|a|");
-        }
-    }
-    xmlhttp.open("GET", "search_relevant_games.php?q="+logged_in_name, false);
-    xmlhttp.send();
+    // var all_names = [];
+    var all_names_unsplit = DB_access("search_relevant_games", [logged_in_name], true);
+    var all_names = all_names_unsplit.split("||");
     return all_names;
 }
 
-function check_name(name) {
+function check_name(name, should_exist=false) {
     // check whether name string not empty
     if (name.length == 0) {
         return false;
@@ -251,12 +244,20 @@ function check_name(name) {
     var all_names = get_names_pwds()[0];
     for (let index = 0; index < all_names.length; index++) {
         if (name == all_names[index]) {
-            return false;
+            if (should_exist) {
+                return true;
+            } else {
+                return false;
+            }
         }
     }
 
     // no problems --> return true
-    return true;
+    if (should_exist) {
+        return false;    
+    } else {
+        return true;
+    }
 }
 
 function check_pwd(pwd) {
@@ -298,7 +299,6 @@ function check_log_in(name, pwd) {
 
 function add_player_to_DB(name, pwd, mail) {
     if (check_name(name) && check_pwd(pwd) && check_mail(mail)) {
-        console.log("here2")
         var xmlhttp = new XMLHttpRequest();
         xmlhttp.open("GET", "insert_new_player.php?q="+name+"|"+pwd+"|"+mail, false);
         xmlhttp.send();
@@ -347,7 +347,6 @@ function log_off() {
 }
 
 function log_off_all() {
-    console.log("in here")
     // debugging function rather
     var xmlhttp = new XMLHttpRequest();
     xmlhttp.open("GET", "log_off_all.php", false);
@@ -384,8 +383,8 @@ function decode_coord_pairs(coords_string) {
     for (let index = 1; index < pairs.length; index++) {
         const pair = pairs[index];
         var pair_splitted = pair.split('y');
-        var x = Number(pair_splitted[0]);
-        var y = Number(pair_splitted[1]);
+        var x = pair_splitted[0];
+        var y = pair_splitted[1];
         output.push([x, y]);
     }
     return output;
@@ -450,15 +449,11 @@ function get_game_infos_ongoing_game(name, name2=logged_in_name) {
     if (logged_in_name == "") {
         return first_game_match; // no matching games
     }
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.onreadystatechange = function() {
-        if (this.readyState == 4 && this.status == 200) {
-            var first_game_match_unsplit = this.responseText;
-            first_game_match = first_game_match_unsplit.split('|a|');
-        }
-    }
-    xmlhttp.open("GET", "check_ongoing_games.php?q="+name+"|"+name2, false);
-    xmlhttp.send();
+    console.log(name)
+    console.log(name2)
+    var first_game_match_unsplit = DB_access("check_ongoing_games", [name, name2], true);
+    console.log(first_game_match_unsplit)
+    var first_game_match = first_game_match_unsplit.split('|a|');
     return first_game_match;
 }
 
@@ -479,7 +474,12 @@ function DB_access(php_name, inputs, output=false) {
             input_str += inputs[index];
             input_str += "|";
         }
+        // remove last "|"
+        input_str = input_str.slice(0, -1);
     }
+    
+
+    // calling php stuff
     xmlhttp.open("GET", php_name+".php"+input_str, false);
     xmlhttp.send();
     if (output) {

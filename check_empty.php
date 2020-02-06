@@ -17,16 +17,25 @@ $pl2 = $a[1];
 $pl1 = mysqli_real_escape_string($con, $pl1);
 $pl2 = mysqli_real_escape_string($con, $pl2);
 
-$sql = "SELECT * FROM fwtl_games WHERE player_1='$pl1' AND player_2='$pl2'";
+$sql = "SELECT * FROM fwtl_games
+WHERE   (player_1='$pl1' AND player_2='$pl2')
+OR      (player_1='$pl2' AND player_2='$pl1')";
 
 if ($result=mysqli_query($con, $sql))
   {
   $obj = mysqli_fetch_object($result);
-  if ($obj->player_1_seen==1 && $obj->player_2_seen==1) {
-      echo "true";
-  } else {
-    echo "false";
-  }
+
+  if (mysqli_num_rows($result) > 0) {
+  
+        if (strlen($obj->player_1_stone_inds)>0 || strlen($obj->player_2_stone_inds)>0) {
+            echo "false1";
+        } else {
+            echo "true";
+        }
+
+    } else {
+        echo "false2";
+    }
 
   // Free result set
   mysqli_free_result($result);

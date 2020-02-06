@@ -2,7 +2,6 @@
 
 $pl = $_GET['q'];
 
-
 $con = mysqli_connect('database-5000160186.ud-webspace.de','dbu190292','Threctia1847','dbs155300');
 if (!$con) {
     echo 'Could not connect: ' . mysqli_error($con);
@@ -20,14 +19,15 @@ if ($result=mysqli_query($con, $sql))
   for ($i = 1; $i <= $result->num_rows; $i++)
     {
     $obj = mysqli_fetch_object($result);
-    if ($pl=$obj->player_1) {
+
+    if ($pl==$obj->player_1) {
         echo $obj->player_2;
-        echo "|a|";
+        echo "||";
         continue; // make sure that same game is not listed twice
     }
-    if ($pl=$obj->player_2) {
+    if ($pl==$obj->player_2) {
         echo $obj->player_1;
-        echo "|a|";
+        echo "||";
         continue; // make sure that same game is not listed twice
     }
     }

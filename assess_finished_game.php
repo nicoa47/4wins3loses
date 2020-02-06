@@ -16,14 +16,18 @@ $pl1 =  mysqli_real_escape_string($con, $pl1);
 $pl2 =  mysqli_real_escape_string($con, $pl2);
 $win =  mysqli_real_escape_string($con, $win);
 
+
+
 // get the previous number of games for each player
+
 // player1
 $result = mysqli_query($con, "SELECT player_n_games FROM fwtl_accounts WHERE player_name='$pl1'");
 $n_games_1 = $result->fetch_object()->player_n_games;
 $sql = "UPDATE fwtl_accounts SET player_n_games=$n_games_1+1 WHERE player_name='$pl1'";
 mysqli_query($con, $sql);
+
 // player2
-$result = mysqli_query($con, "SELECT player_n_games FROM fwtl_accounts WHERE player_name='$pl1'");
+$result = mysqli_query($con, "SELECT player_n_games FROM fwtl_accounts WHERE player_name='$pl2'");
 $n_games_2 = $result->fetch_object()->player_n_games;
 $sql = "UPDATE fwtl_accounts SET player_n_games=$n_games_2+1 WHERE player_name='$pl2'";
 mysqli_query($con, $sql);
