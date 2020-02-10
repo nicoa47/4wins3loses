@@ -202,7 +202,7 @@ function hide_text(text) {
 function get_names_pwds(remove_self=false, remove_existing_games=false) {
     var all_names = [];
     var all_pwds = [];
-    var all_names_pwds_unsplit = DB_access("check_if_name_exists", [], true);
+    var all_names_pwds_unsplit = DB_call("check_if_name_exists", [], true);
     var all_name_pwd_pairs = all_names_pwds_unsplit.split("|b|");
     for (let index = 0; index < all_name_pwd_pairs.length; index++) {
         const pair = all_name_pwd_pairs[index];
@@ -213,7 +213,7 @@ function get_names_pwds(remove_self=false, remove_existing_games=false) {
         }
         if (remove_existing_games) {
             // look at DB in games
-            var exists = DB_access("check_game_exists", [logged_in_name, name], true);
+            var exists = DB_call("check_game_exists", [logged_in_name, name], true);
             if (exists == "true") {
                 continue;
             }
@@ -229,7 +229,7 @@ function get_names_pwds(remove_self=false, remove_existing_games=false) {
 function find_all_relevant_games() {
     // retrieve games from DB where current logged in name is present
     // var all_names = [];
-    var all_names_unsplit = DB_access("search_relevant_games", [logged_in_name], true);
+    var all_names_unsplit = DB_call("search_relevant_games", [logged_in_name], true);
     var all_names = all_names_unsplit.split("||");
     return all_names;
 }
@@ -353,7 +353,7 @@ function log_off_all() {
     xmlhttp.send();
 }
 
-function log_in(name) {
+function logging_in(name) {
 
     logged_in_name = name;
     
@@ -369,9 +369,9 @@ function log_in(name) {
 function logged_in_proceed(name, goal_state) {
     logged_in_name = name;
     if (goal_state == "search_player") {
-        search_player_screen = new SearchPlayerScreen();
+        screens[4] = new SearchPlayer();
     } else {
-        search_game_screen = new SearchGameScreen();
+        screens[5] = new SearchGame();
     }
     game_state = goal_state;
 }
@@ -409,23 +409,23 @@ function reload_game(name) {
     var n_hori = game_dims[0][1];
     var n_vert = game_dims[0][0];
     // from php data set up the board of a "new" game
-    game = new Game(n_hori, n_vert, splitted_infos[0], splitted_infos[1], false);
+    screens[6] = new Game(n_hori, n_vert, splitted_infos[0], splitted_infos[1], false);
     // set the stones accordingly
     var player1_stones = decode_coord_pairs(splitted_infos[4]);
     var player2_stones = decode_coord_pairs(splitted_infos[5]);
     var blocked_stones = decode_coord_pairs(splitted_infos[3]);
-    game.init_cells();
-    game.set_cells(1, player1_stones);
-    game.set_cells(2, player2_stones);
-    game.set_cells(3, blocked_stones);
-    game.turn = Number(splitted_infos[6]) + 1;
+    screens[6].init_cells();
+    screens[6].set_cells(1, player1_stones);
+    screens[6].set_cells(2, player2_stones);
+    screens[6].set_cells(3, blocked_stones);
+    screens[6].turn = Number(splitted_infos[6]) + 1;
     game_state = "game";
 }
 
 function init_game(player2, switch_turns=false, player1=logged_in_name) {
     // get the current values set in options
-    var n_hori = options.items[1].label;
-    var n_vert = options.items[3].label;
+    var n_hori = screens[9].items[1].label;
+    var n_vert = screens[9].items[3].label;
     var dims = [[n_hori, n_vert]];
     var coord_pairs = encode_coord_pairs(dims);
     // TODO generate blocked cells
@@ -434,12 +434,12 @@ function init_game(player2, switch_turns=false, player1=logged_in_name) {
     } else {
         var turn = 0;
     }
-    DB_access("add_to_games", [player1, player2, coord_pairs, "", turn]);
+    DB_call("add_to_games", [player1, player2, coord_pairs, "", turn]);
     // init game
-    game = new Game(n_hori, n_vert, player1, player2);
+    screens[6] = new Game(n_hori, n_vert, player1, player2);
     // change specifics
     if (switch_turns) {
-        game.turn = 2;
+        screens[6].turn = 2;
     }
     game_state = "game";
 }
@@ -449,15 +449,100 @@ function get_game_infos_ongoing_game(name, name2=logged_in_name) {
     if (logged_in_name == "") {
         return first_game_match; // no matching games
     }
-    console.log(name)
-    console.log(name2)
-    var first_game_match_unsplit = DB_access("check_ongoing_games", [name, name2], true);
-    console.log(first_game_match_unsplit)
+    var first_game_match_unsplit = DB_call("check_ongoing_games", [name, name2], true);
     var first_game_match = first_game_match_unsplit.split('|a|');
     return first_game_match;
 }
 
-function DB_access(php_name, inputs, output=false) {
+function order_fair_desc(a, b) {
+    // if equal scores, chose randomly which one is "better"
+    if (a == b) {
+        a += Math.random();
+        b += Math.random();
+    }
+    return b - a;
+}
+
+function order_highscores(all_infos_unsplit) {
+    // goal: object of names and positions to be later converted to correct size etc. in highscores render function
+    // maximum 5 x axis categories (number of games)
+    // split into players
+    players_split = all_infos_unsplit.split('|b|');
+    players_split = players_split.slice(0, -1);
+    n_games = [];
+    scores = [];
+
+    for (let index = 0; index < players_split.length; index++) {
+        var player_split = players_split[index].split('|a|');
+        // convert to numbers
+        player_split[2] = parseFloat(player_split[2]);
+        if (player_split[2] == 0) {
+            player_split[1] = 0;
+        } else {
+            player_split[1] = parseFloat(player_split[1]);
+        }
+        n_games.push(player_split[2]);
+        scores.push(player_split);
+    }
+
+    // set borders of number of games (x axis; typically 10 and 100)
+    var lower_bound = 10;
+    var upper_bound = 100;
+    // special cases first: less than 10
+    if (Math.max(...n_games) <= 10) {
+        lower_bound = Math.min(...n_games);
+        upper_bound = Math.max(...n_games);
+    } else if (Math.max(...n_games) > 10 && Math.max(...n_games) < 100) {
+        upper_bound = Math.max(...n_games);
+    }
+    upper_bound += 0.001; // tiny margin to make sure all players are included
+    // make 4 equidistant categories
+    const n_cats = 4;
+    var step = (upper_bound - lower_bound)/n_cats;
+    cats_bounds = [lower_bound];
+    scores_cat = [];
+    for (let index = 0; index < n_cats; index++) {
+        const last_item = cats_bounds[index];
+        cats_bounds.push(last_item + step);
+        scores_cat.push([]); // prep for sorting players
+    }
+
+    // categorize players into categories
+    for (let player_ind = 0; player_ind < scores.length; player_ind++) {
+        const player_data = scores[player_ind];
+        var player_appended = false;
+        for (let cat_ind = 0; cat_ind < scores_cat.length; cat_ind++) {
+            const b1 = cats_bounds[cat_ind];
+            const b2 = cats_bounds[cat_ind + 1];
+            if (b1 <= player_data[2] && player_data[2] < b2) {
+                scores_cat[cat_ind].push(player_data);
+                player_appended = true;
+                break;
+            }
+        }
+        // if not sorted yet --> to last category
+        if (!player_appended) {
+            scores_cat[scores_cat.length-1].push(player_data);
+        }
+    }
+
+    // sort players in each category
+    scores_cat_sorted = [];
+    for (let cat_ind = 0; cat_ind < scores_cat.length; cat_ind++) {
+        var scores_to_sort = scores_cat[cat_ind];
+        var sorted_scores = scores_to_sort.sort(function(a,b) { return order_fair_desc(a[1], b[1]); });
+        // only keep 5 best
+        if (sorted_scores.length > 5) {
+            sorted_scores = sorted_scores.slice(0,5);
+        }
+        scores_cat_sorted.push(sorted_scores);
+    }
+
+    return scores_cat_sorted;
+
+}
+
+function DB_call(function_name, inputs, output=false) {
     var xmlhttp = new XMLHttpRequest();
     var return_text;
     if (output) {
@@ -467,20 +552,18 @@ function DB_access(php_name, inputs, output=false) {
             }
         }
     }
-    var input_str = "";
+    var input_str = "?q="+function_name+">";
+    for (let index = 0; index < inputs.length; index++) {
+        input_str += inputs[index];
+        input_str += "|";
+    }
+    // remove last "|" if there are inputs
     if (inputs.length > 0) {
-        input_str = "?q=";
-        for (let index = 0; index < inputs.length; index++) {
-            input_str += inputs[index];
-            input_str += "|";
-        }
-        // remove last "|"
         input_str = input_str.slice(0, -1);
     }
-    
 
     // calling php stuff
-    xmlhttp.open("GET", php_name+".php"+input_str, false);
+    xmlhttp.open("GET", "read_DB.php"+input_str, false);
     xmlhttp.send();
     if (output) {
         return return_text;
