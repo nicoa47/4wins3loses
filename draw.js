@@ -46,7 +46,13 @@ resize();
 
 function clear_canvas() {
     ctx.clearRect(0, 0, canv_w, canv_h)
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    var start_w = -current_translate.x; // -(window.innerWidth - canv_w)/2;
+    var start_h = -current_translate.y; // -(window.innerHeight - canv_h)/2;
+    ctx.clearRect(start_w, start_h, window.innerWidth, window.innerHeight);
+}
+
+function clear_window() {
+    ctx.clearRect(-1000, 0, window.innerWidth, window.innerHeight);
 }
 
 function fill_canvas(color) {
@@ -139,6 +145,16 @@ function draw_tri(size, dir, pos, color, filled=true) {
         coords.push({x: right, y: pos.y});
         coords.push({x: left, y: top});
         coords.push({x: left, y: bottom});
+    }
+    else if (dir == "u") {
+        coords.push({x: pos.x, y: top});
+        coords.push({x: right, y: bottom});
+        coords.push({x: left, y: bottom});
+    }
+    else if (dir == "d") {
+        coords.push({x: right, y: top});
+        coords.push({x: left, y: top});
+        coords.push({x: pos.x, y: bottom});
     }
     draw_poly(coords, filled, color);
 }

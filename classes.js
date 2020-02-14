@@ -56,7 +56,7 @@ class MenuItem {
     }
 }
 
-class SpecialFunctionItem   extends MenuItem {
+class SpecialFunctionItem extends MenuItem {
     constructor(func, label, size, line_of_lines, col_of_cols) {
         super(game_state, label, size, line_of_lines, col_of_cols);
         this.func = func;
@@ -100,7 +100,16 @@ class SpecialFunctionItem   extends MenuItem {
                     }
             }
             if (this.func == "send_pwd") {
-                screens[3].email_sent_note = true;
+                // get pw
+                var name = screens[3].input_items[0].input_text.label;
+                var mail = DB_call("get_mail", [name], true);
+                var pwd = DB_call("get_password", [name], true);
+                if (pwd.length > 0) {
+                    var subject = "4wins3loses - password request";
+                    var message = "Your password is: " + pwd;
+                    DB_call("send_mail", [mail, subject, message]);
+                    screens[3].email_sent_note = true;
+                }
             }
             if (this.func == "check_log_in_game") {
                 // get the data
@@ -130,7 +139,14 @@ class SpecialFunctionItem   extends MenuItem {
             }
             if (this.func == "log_off") {
                 log_off();
-                game_state = "reg_log_in";
+                if (game_state == "search_game") {
+                    screens[3] = new LogIn("search_game");
+                    game_state = "log_in";
+                } else {
+                    screens[1] = new RegLogIn("Your are not logged in", "search_player");
+                    game_state = "reg_log_in";
+                }
+                
             }
             if (this.func == "start_game_search_players") {
                 // get the player1 name
@@ -186,41 +202,41 @@ class StaticText            extends MenuItem {
 }
 
 class SearchPlayerInput {
-    constructor(line_of_lines, special_function, search_label) {
+    // TODO allow scrolling function!
+    constructor(line_of_lines, special_function) {
         // important: "line" must be "of_lines" minus 5 or smaller
         // why 5: 1 normal text input + up to 3 special function items + 1 static information
         this.ll = line_of_lines;
         this.sf = special_function;
-        this.search_label = search_label;
         while(logged_in_name == "") {}; // wait for name to refresh
-        this.input_field = [];
         this.names = [];
-        this.info = [];
         this.current_names_list = [];
         this.initial_names_list = [];
         // this.set_items();
         this.AABB = get_text_AABB(this.ll[0], this.ll[1], 1, 2);
         this.active = false;
         this.set_items();
+        // init scrollbar handles
+        this.handle_up = middle_of_cell(this.ll, [3, 3]);
+        this.handle_down = middle_of_cell([this.ll[0] + 4, this.ll[1]], [3, 3]);
+        this.hovered_up = false;
+        this.hovered_down = false;
+        this.current_ind = 0;
     }
     set_items() {
         // initiate players (different whether initiating game or searching challengers)
         if (this.sf == "start_game_search_players") {
             // get all names except oneself
             this.current_names_list = get_names_pwds(true, true)[0];
-            if (this.initial_names_list.length == 0) {
-                this.initial_names_list = this.current_names_list;
-            }
         } else {
             // only display challengers
             this.current_names_list = find_all_relevant_games();
-            if (this.initial_names_list.length == 0) {
-                this.initial_names_list = this.current_names_list;
-            }
+        }
+        if (this.initial_names_list.length == 0) {
+            this.initial_names_list = this.current_names_list;
         }
 
         // arrays can change dynamically, depending on letter typed
-        this.input_field = []; // could be empty
         this.names = [];
         this.info = [];
         
@@ -228,89 +244,62 @@ class SearchPlayerInput {
     display_players() {
         // instantiate these arrays accordingly
 
-        if (this.input_field.length == 0) {
-            this.input_field.push(new TextInput(this.search_label, 60, this.ll));
-        }
-
         // reset
         this.names = [];
-        this.info = [new StaticText(game_state, "No Results", 60, [this.ll[0] + 1, this.ll[1]], [1,1])];
         
         if (this.current_names_list.length > 0) {
 
-            this.info = [];
-
-            for (let index = 0; index < Math.min(this.current_names_list.length, 3); index++) {
+            var end_loop = Math.min(this.current_names_list.length, this.current_ind + 5);
+            var view_ind = 0;
+            for (let index = this.current_ind; index < end_loop; index++) {
                 this.names.push(new SpecialFunctionItem(this.sf, this.current_names_list[index], 60,
-                    [this.ll[0] + 1 + index, this.ll[1]], [1, 1]));
+                    [this.ll[0] + view_ind, this.ll[1]], [2, 3]));
+                view_ind++;
             }
-            if (this.current_names_list.length > 3) {
-                var add_s = "";
-                if (this.current_names_list.length > 4) {
-                    add_s = "s";
-                }
-                this.info.push(new StaticText(game_state,
-                    "+ "+String(this.current_names_list.length - 3)+" more Player"+add_s, 60,
-                    [this.ll[0] + 4, this.ll[1]], [1, 1]));
-            }
-        }
-        else {
-            this.info = [new StaticText(game_state, "No Results", 60, [this.ll[0] + 1, this.ll[1]], [1,1])];
         }
     }
     clicked() {
-        this.input_field[0].clicked();
+        if (this.hovered_up && this.current_ind > 0) {
+            this.current_ind--;
+        }
+        if (this.hovered_down && this.current_ind < this.current_names_list.length - 5) {
+            this.current_ind++;
+        }
     }
     update() {
 
         // refresh the players display
         this.display_players();
 
-        // get the subset of names that begin with the letter(s)
-        if (this.input_field.length > 0) { // make sure screen is not still loading
-            var names_buffer = [];
-            var query = this.input_field[0].input_text.label;
-            if (query != "") {
-                for (let index = 0; index < this.initial_names_list.length; index++) {
-                    const n = this.initial_names_list[index];
-                    if (n.toUpperCase().startsWith(query.toUpperCase())) {
-                        names_buffer.push(n);
-                    }
-                }
-                // set to current matching names
-                this.current_names_list = names_buffer;
-            } else {
-                // make sure all players shown if no input
-                this.current_names_list = this.initial_names_list;
-            }
+        // TODO adjust to scrollbar position
+        // this.current_names_list = this.initial_names_list;
+
+        // hover over top or bottom tri?
+        if (coord_in_square(current_mouse_pos, this.handle_up, 50/2)) {
+            this.hovered_up = true;
+        } else {
+            this.hovered_up = false;
+        }
+        if (coord_in_square(current_mouse_pos, this.handle_down, 50/2)) {
+            this.hovered_down = true;
+        } else {
+            this.hovered_down = false;
         }
 
-        
-
-        // (max) 3 elements
-        for (let index = 0; index < this.input_field.length; index++) {
-            this.input_field[index].update();
-        }
         for (let index = 0; index < this.names.length; index++) {
             this.names[index].update();
         }
-        for (let index = 0; index < this.info.length; index++) {
-            this.info[index].update();
-        }
-
 
     }
     render() {
-        // (max) 3 elements
-        for (let index = 0; index < this.input_field.length; index++) {
-            this.input_field[index].render();
-        }
         for (let index = 0; index < this.names.length; index++) {
             this.names[index].render();
         }
-        for (let index = 0; index < this.info.length; index++) {
-            this.info[index].render();
-        }
+
+        // scrollbar
+        draw_tri(50, "u", this.handle_up, "black", !this.hovered_up);
+        draw_tri(50, "d", this.handle_down, "black", !this.hovered_down);
+
     }
 }
 
@@ -331,11 +320,9 @@ class ValueSelector {
         this.hovered_left = false;
         this.hovered_right = false;
 
-        this.AABB = get_text_AABB(this.line, this.n_lines, this.col, this.n_cols);
-        this.middle_x = (this.AABB[0].x + this.AABB[1].x)/2;
-        this.middle_y = (this.AABB[0].y + this.AABB[1].y)/2
-        this.pos_left = {x: this.middle_x - 2*this.size, y: this.middle_y};
-        this.pos_right = {x: this.middle_x + 2*this.size, y: this.middle_y};
+        this.cell_mid_coord = middle_of_cell(line_of_lines, col_of_cols);
+        this.pos_left = {x: this.cell_mid_coord.x - 2*this.size, y: this.cell_mid_coord.y};
+        this.pos_right = {x: this.cell_mid_coord.x + 2*this.size, y: this.cell_mid_coord.y};
     }
     clicked() {
         if (this.hovered_left && this.label > this.min) {
@@ -350,35 +337,21 @@ class ValueSelector {
     }
     update() {
         // hover over left or right tri?
-        if (current_mouse_pos.x >= this.pos_left.x - this.size/4 
-            && current_mouse_pos.x <= this.pos_left.x + this.size/4
-            && current_mouse_pos.y >= this.middle_y - this.size/4
-            && current_mouse_pos.y <= this.middle_y + this.size/4) {
-                this.hovered_left = true;
+        if (coord_in_square(current_mouse_pos, this.pos_left, this.size/2)) {
+            this.hovered_left = true;
         } else {
-                this.hovered_left = false;
+            this.hovered_left = false;
         }
-        if (current_mouse_pos.x >= this.pos_right.x - this.size/4 
-            && current_mouse_pos.x <= this.pos_right.x + this.size/4
-            && current_mouse_pos.y >= this.middle_y - this.size/4
-            && current_mouse_pos.y <= this.middle_y + this.size/4) {
-                this.hovered_right = true;
+        if (coord_in_square(current_mouse_pos, this.pos_right, this.size/2)) {
+            this.hovered_right = true;
         } else {
-                this.hovered_right = false;
+            this.hovered_right = false;
         }
     }
     render() {
         display_text(this.label, this.line, this.n_lines, this.col, this.n_cols, this.size, this.color);
-        if (this.hovered_left) {
-            draw_tri(this.size, 'l', this.pos_left, "black", false);
-        } else {
-            draw_tri(this.size, 'l', this.pos_left, "black", true);
-        }
-        if (this.hovered_right) {
-            draw_tri(this.size, 'r', this.pos_right, "black", false);
-        } else {
-            draw_tri(this.size, 'r', this.pos_right, "black", true);
-        }
+        draw_tri(this.size, 'l', this.pos_left, "black", !this.hovered_left);
+        draw_tri(this.size, 'r', this.pos_right, "black", !this.hovered_right);
     }
 }
 
@@ -491,6 +464,14 @@ class TextInput {
         } else {
             var label = this.input_text.label;
         }
+        if (this.active) {
+            var prompt_input = window.prompt(this.instruction.label, this.input_text.label);
+            if (prompt_input == null) {
+                prompt_input = "";
+            }
+            this.input_text.label = prompt_input;
+            this.active = false;
+        }
         this.cursor = get_cursor_line(label, this.input_text_size, this.line, this.n_lines, 2, 2);
         
     }
@@ -506,7 +487,6 @@ class TextInput {
         if (this.active) {
             draw_line(this.cursor, "black", 10);
         }
-
     }
 }
 
@@ -578,7 +558,7 @@ class Register              extends InteractiveScreen {
             new TextInput("Enter Password",                         60, [3, 5], true),
             new TextInput("Enter E-Mail",                           60, [4, 5], false, true),
         ]
-        this.input_items[0].active = true;
+        // this.input_items[0].active = true;
         this.active_input_ind = -1; // -1 means zero
         this.text_inputs_active = [0, 0, 0]; // keeping track that only one input is active at a time
         this.valid_name = true;
@@ -664,7 +644,7 @@ class LogIn                 extends InteractiveScreen {
             new TextInput("Your Name",                             60, [2, 5]),
             new TextInput("Your Password",                         60, [3, 5], true),
         ]
-        this.input_items[0].active = true;
+        // this.input_items[0].active = true;
         this.email_sent_note = false;
         this.log_in_correct = true;
         this.valid_name = true;
@@ -725,7 +705,7 @@ class LogIn                 extends InteractiveScreen {
         }
         // notification that email was sent
         if (this.email_sent_note) {
-            var mail_sent = new StaticText(game_state, "feature not implemented yet", 60, [4, 5], [2, 2]);
+            var mail_sent = new StaticText(game_state, "Check your Emails", 60, [4, 5], [2, 2]);
             mail_sent.color = "rgba(220,0,0,1)";
             mail_sent.render();
         }

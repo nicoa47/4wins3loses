@@ -1,61 +1,3 @@
-alphabet = [
-    'a',
-    'b',
-    'c',
-    'd',
-    'e',
-    'f',
-    'g',
-    'h',
-    'i',
-    'j',
-    'k',
-    'l',
-    'm',
-    'n',
-    'o',
-    'p',
-    'q',
-    'r',
-    's',
-    't',
-    'u',
-    'v',
-    'w',
-    'x',
-    'y',
-    'z',
-]
-
-alphabet_upper = [
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-    'G',
-    'H',
-    'I',
-    'J',
-    'K',
-    'L',
-    'M',
-    'N',
-    'O',
-    'P',
-    'Q',
-    'R',
-    'S',
-    'T',
-    'U',
-    'V',
-    'W',
-    'X',
-    'Y',
-    'Z',
-]
-
 // coord: {x: x_val, y: y_val}
 function coord(x_val, y_val) {
     return {x: x_val, y: y_val};
@@ -299,9 +241,7 @@ function check_log_in(name, pwd) {
 
 function add_player_to_DB(name, pwd, mail) {
     if (check_name(name) && check_pwd(pwd) && check_mail(mail)) {
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.open("GET", "insert_new_player.php?q="+name+"|"+pwd+"|"+mail, false);
-        xmlhttp.send();
+        DB_call("insert_new_player", [name, pwd, mail]);
     }
 }
 
@@ -337,32 +277,21 @@ function class_of_key(keycode) {
 
 function log_off() {
     
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", "set_log_off.php?q="+logged_in_name, false);
-    xmlhttp.send();
+    DB_call("set_log_off", [logged_in_name], false);
 
     // set the string name back to empty
     logged_in_name = "";
 
-}
-
-function log_off_all() {
-    // debugging function rather
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", "log_off_all.php", false);
-    xmlhttp.send();
 }
 
 function logging_in(name) {
 
     logged_in_name = name;
-    
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", "set_log_in.php?q="+logged_in_name, false);
-    xmlhttp.send();
+
+    DB_call("set_log_in", [logged_in_name], false);
 
     // set the string name back to empty
-    logged_in_name = "";
+    // logged_in_name = ""; // TODO check why this line is here
 
 }
 
@@ -568,4 +497,38 @@ function DB_call(function_name, inputs, output=false) {
     if (output) {
         return return_text;
     }
+}
+
+function middle_of_cell(line_of_lines, col_of_cols) {
+    var AABB = get_text_AABB(line_of_lines[0], line_of_lines[1], col_of_cols[0], col_of_cols[1]);
+    var middle_x = (AABB[0].x + AABB[1].x)/2;
+    var middle_y = (AABB[0].y + AABB[1].y)/2
+    return {x: middle_x, y: middle_y};
+}
+
+function coord_in_square(coord, center, size) {
+    if (   coord.x >= center.x - size/2
+        && coord.x <= center.x + size/2
+        && coord.y >= center.y - size/2
+        && coord.y <= center.y + size/2) {
+            return true;
+        } else {
+            return false;
+        }
+}
+
+function getUrlVars() {
+    var vars = {};
+    var parts = window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value) {
+        vars[key] = value;
+    });
+    return vars;
+}
+
+function getUrlParam(parameter, defaultvalue){
+    var urlparameter = defaultvalue;
+    if(window.location.href.indexOf(parameter) > -1){
+        urlparameter = getUrlVars()[parameter];
+        }
+    return urlparameter;
 }

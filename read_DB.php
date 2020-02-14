@@ -24,14 +24,15 @@ function split_input($con, $q)
     return $a;
 }
 
-function change_turn($a, $turn)
+function change_turn($con, $a, $turn)
 {
     $sql = "UPDATE fwtl_games SET turn=$turn
     WHERE player_1='$a[0]' AND player_2='$a[1]'";
+
     mysqli_query($con, $sql);
 }
 
-function add_finished_game_to_player($player)
+function add_finished_game_to_player($con, $player)
 {
     $result = mysqli_query($con, "SELECT player_n_games FROM fwtl_accounts WHERE player_name='$player'");
     $n_games = $result->fetch_object()->player_n_games;
@@ -39,7 +40,7 @@ function add_finished_game_to_player($player)
     mysqli_query($con, $sql);
 }
 
-function add_victory_to_player($player)
+function add_victory_to_player($con, $player)
 {
     $result = mysqli_query($con, "SELECT player_n_wins FROM fwtl_accounts WHERE player_name='$player'");
     $n_wins = $result->fetch_object()->player_n_wins;
@@ -82,7 +83,6 @@ function add_to_games($con, $input)
 
 function apply_new_turn($con, $input)
 {
-
     $a = split_input($con, $input);
 
     if ($a[4]=='1') {
@@ -95,7 +95,7 @@ function apply_new_turn($con, $input)
             WHERE player_1='$a[0]' AND player_2='$a[1]'";
             mysqli_query($con, $sql);
         }
-        change_turn($a, 1);
+        change_turn($con, $a, 1);
     }
     else {
         if ($a[2] >= 0 && $a[3] >= 0) {
@@ -107,7 +107,7 @@ function apply_new_turn($con, $input)
             WHERE player_1='$a[0]' AND player_2='$a[1]'";
             mysqli_query($con, $sql);
         }
-        change_turn($a, 0);
+        change_turn($con, $a, 0);
     }
 }
 
@@ -115,13 +115,13 @@ function assess_finished_game($con, $input)
 {
     $a = split_input($con, $input);
 
-    add_finished_game_to_player($a[0]);
-    add_finished_game_to_player($a[1]);
+    add_finished_game_to_player($con, $a[0]);
+    add_finished_game_to_player($con, $a[1]);
 
     if ($a[2] == 0) {
-        add_victory_to_player($a[0]);
+        add_victory_to_player($con, $a[0]);
     } else {
-        add_victory_to_player($a[1]);
+        add_victory_to_player($con, $a[1]);
     }
 }
 
@@ -383,7 +383,6 @@ function set_seen($con, $input)
         mysqli_query($con, $sql);
     }
     else {
-        echo '2';
         $sql = "UPDATE fwtl_games SET player_2_seen=1 WHERE player_1='$a[1]' AND player_2='$a[2]'";
         mysqli_query($con, $sql);
     }
@@ -403,6 +402,61 @@ function set_unseen($con, $input)
     }
 }
 
+function send_mail($con, $input)
+{
+    $a = split_input($con, $input);
+    $header = 'From: info@kricki.rocks' . "\r\n" .
+    'Reply-To: info@kricki.rocks';
+    $a[2] = $a[2] . "\r\n\r\n Cheers, Nico";
+    $success = mail($a[0], $a[1], $a[2], $header);
+    echo $success;
+}
+
+function get_password($con, $input)
+{
+    $a = split_input($con, $input);
+    $sql = "SELECT * FROM fwtl_accounts WHERE player_name='$a[0]'";
+    if ($result=mysqli_query($con, $sql)) {
+        $obj = mysqli_fetch_object($result);
+        echo $obj->player_pwd;
+    }
+}
+
+function get_mail($con, $input)
+{
+    $a = split_input($con, $input);
+
+    $sql = "SELECT * FROM fwtl_accounts WHERE player_name='$a[0]'";
+    if ($result=mysqli_query($con, $sql)) {
+        $obj = mysqli_fetch_object($result);
+        echo $obj->player_mail;
+    }
+}
+
+function set_log_in($con, $input)
+{
+    $a = split_input($con, $input);
+
+    $sql = "UPDATE fwtl_accounts SET player_online = '1' WHERE player_name='$a[0]'";
+    mysqli_query($con, $sql);
+}
+
+function set_log_off($con, $input)
+{
+    $a = split_input($con, $input);
+
+    $sql = "UPDATE fwtl_accounts SET player_online = '0' WHERE player_name='$a[0]'";
+    mysqli_query($con, $sql);
+}
+
+function insert_new_player($con, $input)
+{
+    $a = split_input($con, $input);
+
+    $sql = "INSERT INTO fwtl_accounts(player_name,player_pwd,player_mail,player_n_games,player_n_wins,player_online) VALUES('$a[0]', '$a[1]', '$a[2]', 0, 0, 1)";
+    mysqli_query($con, $sql);
+
+}
 
 
 // call functions
@@ -423,6 +477,12 @@ if ($function == 'search_relevant_games')   { search_relevant_games($con, $input
 if ($function == 'set_end')                 { set_end($con, $input); }
 if ($function == 'set_seen')                { set_seen($con, $input); }
 if ($function == 'set_unseen')              { set_unseen($con, $input); }
+if ($function == 'send_mail')               { send_mail($con, $input); }
+if ($function == 'get_password')            { get_password($con, $input); }
+if ($function == 'get_mail')                { get_mail($con, $input); }
+if ($function == 'set_log_in')              { set_log_in($con, $input); }
+if ($function == 'set_log_off')             { set_log_off($con, $input); }
+if ($function == 'insert_new_player')       { insert_new_player($con, $input); }
 
 // close
 mysqli_close($con);

@@ -3,9 +3,9 @@ var game_state = "menu";
 
 var n_hori = {name: 'hori', num: 8};
 var n_vert = {name: 'vert', num: 8};
-var logged_in_name = "Adelhoeni"; // empty if not logged in
-var upper = false; // flag to determine whether shift is pressed
-var alt = false; // flag to determine whether alt is pressed (for @)
+
+// get info from URL if clicked on mail link to join game
+var logged_in_name = getUrlParam('pl', "");
 
 // containers
 var menu = new Menu();                                      // 0
@@ -25,12 +25,28 @@ screens = [
     menu, reg_log_in, register, log_in, search_player, search_game, game, game_end_options, rules, options, highscores
 ];
 
+// if first time loaded and player in URL, ask for pwd
+if (logged_in_name.length > 0) {
+    var pwd = prompt("Please enter your password:");
+    var login_correct = check_log_in(logged_in_name, pwd);
+    if (login_correct) {
+        logging_in(logged_in_name, "game");
+        var opponent_name = getUrlParam('opp', "");
+        if (opponent_name.length > 0) {
+            // search for game
+            var loaded_game_infos = get_game_infos_ongoing_game(opponent_name);
+            if (loaded_game_infos.length > 0) {
+                reload_game(opponent_name);
+            }
+        }
+    } else {
+        logged_in_name = "";
+    }
+}
+
 // add event listeners
-// document.addEventListener('mousedown', mousedown);
-document.addEventListener('mouseup', mousedown);
+document.addEventListener('mousedown', mousedown);
 document.addEventListener('mousemove', mousemove);
-document.addEventListener('keydown', keydown);
-document.addEventListener('keyup', keyup);
 window.addEventListener('resize', resize);
 window.addEventListener("unload", unload);
 
@@ -115,246 +131,6 @@ function draw_all() {
     }
 }
 
-
-// defining listener functions
-function keydown(e) {
-    if (e.keyCode == 16) {
-        upper = true;
-    }
-    if (e.keyCode == 18) {
-        alt = true;
-    }
-    if (game_state == "register") {
-        var type_case = class_of_key(e.keyCode);
-        // if any active key is pressed
-        if (type_case != "") {
-            // search active text input field
-            var index = screens[2].active_input_ind;
-            if (index >= 0) {
-                var last_ind = screens[2].input_items.length - 1;
-                if (type_case == "number") {
-                    const letter = String(e.keyCode - 48);
-                    screens[2].input_items[index].letter_typed(letter);
-                }
-                if (type_case == "letter") {
-                    if (upper) {
-                        var letter = alphabet_upper[e.keyCode - 65];    
-                    } else if (alt && index == last_ind && e.keyCode == 81) {
-                        var letter = "@";
-                    } else { // normal case
-                        var letter = alphabet[e.keyCode - 65];    
-                    }
-                    screens[2].input_items[index].letter_typed(letter);
-                }
-                if (type_case == "backspace") {
-                    screens[2].input_items[index].delete_letter();
-                }
-                if (type_case == "escape") {
-                    screens[2].input_items[index].active = false;
-                }
-                if (type_case == "dot" && index == last_ind) {
-                    screens[2].input_items[index].letter_typed(".");
-                }
-                if (type_case == "hyphen" && index == last_ind) {
-                    if (upper) {
-                        screens[2].input_items[index].letter_typed("_");
-                    } else {
-                        screens[2].input_items[index].letter_typed("-");
-                    }
-                }
-                if (type_case == "tab") {
-                    screens[2].input_items[index].active = false;
-                    if (index < last_ind) {
-                        screens[2].input_items[index + 1].active = true;
-                    }
-                }
-                if (type_case == "enter") {
-                    // test whether valid
-                    // TODO remove hardcoding
-                    if (index == 0) {
-                        var name = screens[2].input_items[0].input_text.label;
-                        screens[2].valid_name = check_name(name);
-                        if (screens[2].valid_name) {
-                            screens[2].input_items[index].active = false;
-                            screens[2].input_items[index + 1].active = true;
-                        }
-                    }
-                    if (index == 1) {
-                        var pwd = screens[2].input_items[1].input_text.label;
-                        screens[2].valid_pwd = check_pwd(pwd);
-                        if (screens[2].valid_pwd) {
-                            screens[2].input_items[index].active = false;
-                            screens[2].input_items[index + 1].active = true;
-                        }
-                    }
-                    if (index == 2) {
-                        var mail = screens[2].input_items[2].input_text.label;
-                        screens[2].valid_mail = check_mail(mail);
-                        if (screens[2].valid_mail) {
-                            screens[2].input_items[index].active = false;
-
-                            // last option: go to next screen
-                            var name = screens[2].input_items[0].input_text.label;
-                            var pwd =  screens[2].input_items[1].input_text.label;
-                            var mail = screens[2].input_items[2].input_text.label;
-                            add_player_to_DB(name, pwd, mail);
-                            if (screens[2].goal_state == "search_player") {
-                                logged_in_proceed(name, "search_player");
-                            } else {
-                                logged_in_proceed(name, "search_game");
-                            }
-
-                        }
-                    }
-                }
-            }
-        }
-    }
-    if (game_state == "log_in") {
-        var type_case = class_of_key(e.keyCode);
-        // if any active key is pressed
-        if (type_case != "") {
-            // search active text input field
-            // TODO: remove hardcoding
-            var index = screens[3].active_input_ind;
-            if (index >= 0) {
-                var last_ind = screens[3].input_items.length - 1;
-                if (type_case == "number") {
-                    const letter = String(e.keyCode - 48);
-                    screens[3].input_items[index].letter_typed(letter);
-                }
-                if (type_case == "letter") {
-                    if (upper) {
-                        var letter = alphabet_upper[e.keyCode - 65];
-                    } else { // normal case
-                        var letter = alphabet[e.keyCode - 65];    
-                    }
-                    screens[3].input_items[index].letter_typed(letter);
-                }
-                if (type_case == "backspace") {
-                    screens[3].input_items[index].delete_letter();
-                }
-                if (type_case == "escape") {
-                    screens[3].input_items[index].active = false;
-                }
-                if (type_case == "tab") {
-                    screens[3].input_items[index].active = false;
-                    if (index == 0) {
-                        screens[3].input_items[index + 1].active = true;
-                    }
-                }
-                if (type_case == "enter") {
-                    // test whether valid
-                    // TODO remove hardcoding
-                    if (index == 0) {
-                        var name = screens[3].input_items[0].input_text.label;
-                        screens[3].valid_name = check_name(name, true);
-                        if (screens[3].valid_name) {
-                            screens[3].input_items[index].active = false;
-                            screens[3].input_items[index + 1].active = true;
-                        }
-                    }
-                    if (index == 1) {
-                        var pwd = screens[3].input_items[1].input_text.label;
-                        screens[3].valid_pwd = check_pwd(pwd);
-                        if (screens[3].valid_pwd) {
-                            screens[3].input_items[index].active = false;
-
-                            // last option: go to next screen if valid
-                            var name = screens[3].input_items[0].input_text.label;
-                            var pwd = screens[3].input_items[1].input_text.label;
-                            var correct = check_log_in(name, pwd);
-                            screens[3].log_in_correct = correct;
-                            if (correct) {
-                                if (screens[3].goal_state == "search_player") {
-                                    logging_in(name);
-                                    logged_in_proceed(name, "search_player");
-                                } else {
-                                    logging_in(name, "game");
-                                    logged_in_proceed(name, "search_game");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    if (game_state == "search_player") {
-        var type_case = class_of_key(e.keyCode);
-        // if any active key is pressed
-        if (type_case != "") {
-            // search active text input field
-            if (screens[4].items[1].input_field.length > 0) {
-                if (screens[4].items[1].input_field[0].active) {
-                    if (type_case == "number") {
-                        const letter = String(e.keyCode - 48);
-                        screens[4].items[1].input_field[0].letter_typed(letter);
-                    }
-                    if (type_case == "letter") {
-                        if (upper) {
-                            var letter = alphabet_upper[e.keyCode - 65];
-                        } else { // normal case
-                            var letter = alphabet[e.keyCode - 65];    
-                        }
-                        screens[4].items[1].input_field[0].letter_typed(letter);
-                    }
-                    if (type_case == "backspace") {
-                        screens[4].items[1].input_field[0].delete_letter();
-                    }
-                    if (type_case == "escape") {
-                        screens[4].items[1].input_field[0].active = false;
-                    }
-                    if (type_case == "enter") {
-                        screens[4].items[1].input_field[0].active = false;
-                    }
-                }
-            }
-        }
-    }
-    if (game_state == "search_game") {
-        var type_case = class_of_key(e.keyCode);
-        // if any active key is pressed
-        if (type_case != "") {
-            // search active text input field
-            if (screens[5].items[1].input_field.length > 0) {
-                if (screens[5].items[1].input_field[0].active) {
-                    if (type_case == "number") {
-                        const letter = String(e.keyCode - 48);
-                        screens[5].items[1].input_field[0].letter_typed(letter);
-                    }
-                    if (type_case == "letter") {
-                        if (upper) {
-                            var letter = alphabet_upper[e.keyCode - 65];
-                        } else { // normal case
-                            var letter = alphabet[e.keyCode - 65];    
-                        }
-                        screens[5].items[1].input_field[0].letter_typed(letter);
-                    }
-                    if (type_case == "backspace") {
-                        screens[5].items[1].input_field[0].delete_letter();
-                    }
-                    if (type_case == "escape") {
-                        screens[5].items[1].input_field[0].active = false;
-                    }
-                    if (type_case == "enter") {
-                        screens[5].items[1].input_field[0].active = false;
-                    }
-                }
-            }
-        }
-    }
-}
-
-function keyup(e) {
-    if (e.keyCode == 16) {
-        upper = false;
-    }
-    if (e.keyCode == 18) {
-        alt = false;
-    }
-}
-
 function mousedown(e) {
 
     // make sure it is LMB
@@ -362,23 +138,31 @@ function mousedown(e) {
         // get position
         current_mouse_pos = get_pos(e);
         
-        // activate items
+        // activate items --> but not between screens
+        // deactivate click listener for new screen
         for (let screen_ind = 0; screen_ind < screens.length; screen_ind++) {
             try {
                 if (screens[screen_ind].game_state == game_state) {
-                    clicked_on_item(screens[screen_ind].items);
                     // special cases
                     if (screen_ind == 2 || screen_ind == 3) {
+                        clicked_on_item(screens[screen_ind].items);
                         clicked_on_item(screens[screen_ind].input_items);
                     }
-                    if (screen_ind == 4 || screen_ind == 5) {
+                    else if (screen_ind == 4 || screen_ind == 5) {
+                        clicked_on_item(screens[screen_ind].items);
                         clicked_on_item(screens[screen_ind].items[1].names);
                     }
-                    if (screen_ind == 6) {
+                    else if (screen_ind == 6) {
                         for (let index = 0; index < screens[6].cells.length; index++) {
+                            clicked_on_item(screens[screen_ind].items);
                             clicked_on_item(screens[6].cells[index]);
                         }
                     }
+                    else {
+                        // normal case
+                        clicked_on_item(screens[screen_ind].items);
+                    }
+                    break;
                 }
             } catch {}
         }
