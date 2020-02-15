@@ -458,6 +458,18 @@ function insert_new_player($con, $input)
 
 }
 
+function send_mail_challenged($con, $input)
+{
+    $a = split_input($con, $input);
+    $header = 'From: info@kricki.rocks' . "\r\n" .
+    'Reply-To: info@kricki.rocks';
+    $msg = $a[2] . " challenged you to a duel. Follow this link: \r\n";
+    $msg = $msg . "https://kricki.rocks/4wins3loses/?pl=" . $a[3] . "&opp=" . $a[2];
+    $msg = $msg . "\r\n\r\n Cheers, Nico";
+    $success = mail($a[0], $a[1], $msg, $header);
+    echo $success;
+}
+
 
 // call functions
 
@@ -483,6 +495,7 @@ if ($function == 'get_mail')                { get_mail($con, $input); }
 if ($function == 'set_log_in')              { set_log_in($con, $input); }
 if ($function == 'set_log_off')             { set_log_off($con, $input); }
 if ($function == 'insert_new_player')       { insert_new_player($con, $input); }
+if ($function == 'send_mail_challenged')    { send_mail_challenged($con, $input); }
 
 // close
 mysqli_close($con);

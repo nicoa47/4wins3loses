@@ -5,7 +5,7 @@ var n_hori = {name: 'hori', num: 8};
 var n_vert = {name: 'vert', num: 8};
 
 // get info from URL if clicked on mail link to join game
-var logged_in_name = getUrlParam('pl', "");
+var logged_in_name = getUrlParam('pl', "b");
 
 // containers
 var menu = new Menu();                                      // 0
@@ -40,6 +40,7 @@ if (logged_in_name.length > 0) {
             }
         }
     } else {
+        console.log("log in incorrect!")
         logged_in_name = "";
     }
 }
@@ -114,7 +115,7 @@ function update() {
 function draw_all() {
     // clear canvas
     clear_canvas();
-    fill_canvas("rgba(255,255,255,0)");
+    // fill_canvas("rgba(255,255,255,0)");
 
     // distinction of game states
     for (let screen_ind = 0; screen_ind < screens.length; screen_ind++) {
@@ -129,6 +130,9 @@ function draw_all() {
             }
         } catch {}
     }
+
+    // debug
+    fill_canvas("rgba(1,0,0,0.5)");
 }
 
 function mousedown(e) {

@@ -43,6 +43,9 @@ class MenuItem {
         }
     }
     update() {
+        // AABB can change dynamically upon resizing!
+        this.AABB = get_text_AABB(this.line, this.n_lines, this.col, this.n_cols);
+
         if (coord_within_AABB(current_mouse_pos, this.AABB)) {
             this.hovered = true;
             this.color = this.hover_color;
@@ -109,6 +112,8 @@ class SpecialFunctionItem extends MenuItem {
                     var message = "Your password is: " + pwd;
                     DB_call("send_mail", [mail, subject, message]);
                     screens[3].email_sent_note = true;
+                } else {
+                    alert("Could not find '" + name + "' in database!");
                 }
             }
             if (this.func == "check_log_in_game") {
@@ -217,11 +222,14 @@ class SearchPlayerInput {
         this.active = false;
         this.set_items();
         // init scrollbar handles
-        this.handle_up = middle_of_cell(this.ll, [3, 3]);
-        this.handle_down = middle_of_cell([this.ll[0] + 4, this.ll[1]], [3, 3]);
+        this.set_handles();
         this.hovered_up = false;
         this.hovered_down = false;
         this.current_ind = 0;
+    }
+    set_handles() {
+        this.handle_up = middle_of_cell(this.ll, [3, 3]);
+        this.handle_down = middle_of_cell([this.ll[0] + 4, this.ll[1]], [3, 3]);
     }
     set_items() {
         // initiate players (different whether initiating game or searching challengers)
@@ -252,8 +260,8 @@ class SearchPlayerInput {
             var end_loop = Math.min(this.current_names_list.length, this.current_ind + 5);
             var view_ind = 0;
             for (let index = this.current_ind; index < end_loop; index++) {
-                this.names.push(new SpecialFunctionItem(this.sf, this.current_names_list[index], 60,
-                    [this.ll[0] + view_ind, this.ll[1]], [2, 3]));
+                this.names.push(new SpecialFunctionItem(this.sf, this.current_names_list[index], 40,
+                    [this.ll[0] + view_ind + 0.5, this.ll[1]], [2, 3]));
                 view_ind++;
             }
         }
@@ -268,11 +276,13 @@ class SearchPlayerInput {
     }
     update() {
 
+        // update handles position
+        this.set_handles();
+
         // refresh the players display
         this.display_players();
 
         // TODO adjust to scrollbar position
-        // this.current_names_list = this.initial_names_list;
 
         // hover over top or bottom tri?
         if (coord_in_square(current_mouse_pos, this.handle_up, 50/2)) {
@@ -319,10 +329,13 @@ class ValueSelector {
         this.color = this.base_color;
         this.hovered_left = false;
         this.hovered_right = false;
-
-        this.cell_mid_coord = middle_of_cell(line_of_lines, col_of_cols);
-        this.pos_left = {x: this.cell_mid_coord.x - 2*this.size, y: this.cell_mid_coord.y};
-        this.pos_right = {x: this.cell_mid_coord.x + 2*this.size, y: this.cell_mid_coord.y};
+        this.place_handles();
+        
+    }
+    place_handles() {
+        this.cell_mid_coord = middle_of_cell([this.line, this.n_lines], [this.col, this.n_cols]);
+        this.pos_left = {x: this.cell_mid_coord.x - 1*this.size, y: this.cell_mid_coord.y};
+        this.pos_right = {x: this.cell_mid_coord.x + 1*this.size, y: this.cell_mid_coord.y};
     }
     clicked() {
         if (this.hovered_left && this.label > this.min) {
@@ -336,6 +349,9 @@ class ValueSelector {
 
     }
     update() {
+        // update the AABBs so that window resizing is considered
+        this.place_handles();
+
         // hover over left or right tri?
         if (coord_in_square(current_mouse_pos, this.pos_left, this.size/2)) {
             this.hovered_left = true;
@@ -415,21 +431,29 @@ class Cell {
 
 class TextInput {
     constructor(label, size, line_of_lines, pwd=false, mail=false) {
-        this.instruction = new SpecialFunctionItem("text_input", label, size, line_of_lines, [1, 2]);
-        this.input_text_size = 60;
-        this.input_text = new StaticText(game_state, "", this.input_text_size, line_of_lines, [2, 2]);
+        this.label = label;
         this.size = size;
-        this.active = false;
-        this.hovered = false;
+        this.line_of_lines = line_of_lines;
         this.line = line_of_lines[0];
         this.n_lines = line_of_lines[1];
+        this.input_text = new StaticText(game_state, "", this.input_text_size, this.line_of_lines, [2, 2]);
+        this.set_items();
+        this.active = false;
+        this.hovered = false;
         this.col = 1;       // only for instruction
         this.n_cols = 2;    // only for instruction
         this.AABB = get_text_AABB(this.line, this.n_lines, this.col, this.n_cols);
-        this.cursor = get_cursor_line(this.input_text.label, this.input_text_size, 
-            line_of_lines[0], line_of_lines[1], 2, 2);
         this.pwd = pwd;
         this.mail = mail;
+    }
+    set_items() {
+        if (canv_w > canv_h) {
+            this.instruction = new SpecialFunctionItem("text_input", this.label, this.size, this.line_of_lines, [1, 2]);
+            this.AABB = get_text_AABB(this.line, this.n_lines, this.col, this.n_cols);
+        } else {
+            this.instruction = new SpecialFunctionItem("text_input", this.label, this.size, this.line_of_lines, [1, 1]);
+            this.AABB = get_text_AABB(this.line, this.n_lines, 1, 1);
+        }
     }
     clicked() {
         if (coord_within_AABB(current_mouse_pos, this.AABB)) {
@@ -457,13 +481,9 @@ class TextInput {
         this.active = false;
     }
     update() {
+        this.set_items();
         this.instruction.update();
-        // get cursor position based on current text length
-        if (this.pwd) {
-            var label = hide_text(this.input_text.label)
-        } else {
-            var label = this.input_text.label;
-        }
+        // call prompt field when clicked
         if (this.active) {
             var prompt_input = window.prompt(this.instruction.label, this.input_text.label);
             if (prompt_input == null) {
@@ -472,20 +492,24 @@ class TextInput {
             this.input_text.label = prompt_input;
             this.active = false;
         }
-        this.cursor = get_cursor_line(label, this.input_text_size, this.line, this.n_lines, 2, 2);
-        
     }
     render() {
         this.instruction.render();
         // render input
-        if (this.pwd) {
-            var hidden_label = hide_text(this.input_text.label);
-            display_text(hidden_label, this.line, this.n_lines, 2, 2, this.size, "black");
+        if (canv_w > canv_h) {
+            if (this.pwd) {
+                var hidden_label = hide_text(this.input_text.label);
+                display_text(hidden_label, this.line, this.n_lines, 2, 2, this.size, "black");
+            } else {
+                display_text(this.input_text.label, this.line, this.n_lines, 2, 2, this.size*0.8, "black", "Courier New");
+            }
         } else {
-            this.input_text.render();
-        }
-        if (this.active) {
-            draw_line(this.cursor, "black", 10);
+            if (this.pwd) {
+                var hidden_label = hide_text(this.input_text.label);
+                display_text(hidden_label, this.line + 0.5, this.n_lines, 1, 1, this.size, "black");
+            } else {
+                display_text(this.input_text.label, this.line + 0.5, this.n_lines, 1, 1, this.size*0.8, "black", "Courier New");
+            }
         }
     }
 }
@@ -498,9 +522,22 @@ class TextInput {
 // base class for interactive screens with items
 class InteractiveScreen {
     constructor(items) {
+        this.hori_items = items;
         this.items = items;
     }
     update() {
+        // make font appear smaller on vertical screens
+        // for (let index = 0; index < this.items.length; index++) {
+            // try {
+                // var size_hori = this.hori_items[index].size;
+                // if (canv_h >= can_w) {
+                //     var new_size = size_hori*0.75;
+                // } else {
+                //     var new_size = size_hori;
+                // }
+                // this.items[index].size = new_size;
+            // } catch {}
+        // }
         update_list(this.items);
     }
     render() {
@@ -511,13 +548,13 @@ class InteractiveScreen {
 class Menu                  extends InteractiveScreen {
     constructor() {
         var items = [
-            new StaticText(game_state,      "4 wins*",          120, [2, 14], [1, 1]),
-            new StaticText(game_state,      "* 3 loses.",       45,  [6, 28], [6, 10]),
-            new MenuItem("search_player",   "CHALLENGE PLAYER", 70,  [3, 7]),
-            new MenuItem("search_game",       "CHOOSE GAME",      70,  [4, 7]),
-            new MenuItem("rules",           "RULES",            70,  [5, 7]),
-            new MenuItem("options",         "OPTIONS",          70,  [6, 7]),
-            new MenuItem("highscores",      "HIGHSCORES",       70,  [7, 7]),
+            new StaticText(game_state,      "4 wins*",              120, [2, 14], [1, 1]),
+            new StaticText(game_state,      "* 3 loses.",           45,  [6, 28], [6, 10]),
+            new MenuItem("search_player",   "CHALLENGE PLAYER",     55,  [3, 7]),
+            new MenuItem("search_game",     "CHOOSE GAME",          55,  [4, 7]),
+            new MenuItem("rules",           "RULES",                55,  [5, 7]),
+            new MenuItem("options",         "OPTIONS",              55,  [6, 7]),
+            new MenuItem("highscores",      "HIGHSCORES",           55,  [7, 7]),
         ];
         super(items);
         this.game_state = "menu";
@@ -527,10 +564,10 @@ class Menu                  extends InteractiveScreen {
 class RegLogIn              extends InteractiveScreen {
     constructor(label, goal_game_state) {
         var items = [
-            new StaticText(game_state,  label,                  80, [1, 5], [1, 1]),
-            new MenuItem("log_in",      "Log In",               60, [2, 5]),
-            new MenuItem("register",    "Create New Player",    60, [3, 5]),
-            new MenuItem("menu",        "Back to Menu",         60, [5, 5]),
+            new StaticText(game_state,  label,                  60, [1, 5], [1, 1]),
+            new MenuItem("log_in",      "Log In",               45, [2, 5]),
+            new MenuItem("register",    "Create New Player",    45, [3, 5]),
+            new MenuItem("menu",        "Back to Menu",         45, [5, 5]),
         ];
         super(items);
         this.game_state = "reg_log_in";
@@ -542,23 +579,22 @@ class RegLogIn              extends InteractiveScreen {
 class Register              extends InteractiveScreen {
     constructor(goal_state) {
         var items = [
-            new StaticText(game_state, "Register New Player",       70, [1, 5], [1, 1]),
-            new MenuItem("menu", "Back to Menu",                    70, [5, 5], [1, 2]),
+                     new StaticText(game_state, "Register New Player",       60, [1, 5], [1, 1]),
+                     new MenuItem("menu", "Back to Menu",                    45, [5, 5], [1, 2])
         ];
         super(items);
-        this.game_state = "register";
-        this.goal_state = goal_state;
         if (goal_state == "search_player") {
-            this.items.push(new SpecialFunctionItem("check_register_player", "Continue",      70, [5, 5], [2, 2]));
+            this.items.push(new SpecialFunctionItem("check_register_player", "Continue",      45, [5, 5], [2, 2]));
         } else {
-            this.items.push(new SpecialFunctionItem("check_register_game", "Continue",      70, [5, 5], [2, 2]));
+            this.items.push(new SpecialFunctionItem("check_register_game", "Continue",      45, [5, 5], [2, 2]));
         }
         this.input_items = [
-            new TextInput("Enter Name",                             60, [2, 5]),
-            new TextInput("Enter Password",                         60, [3, 5], true),
-            new TextInput("Enter E-Mail",                           60, [4, 5], false, true),
-        ]
-        // this.input_items[0].active = true;
+            new TextInput("Enter Name",                             50, [2, 5]),
+            new TextInput("Enter Password",                         50, [3, 5], true),
+            new TextInput("Enter E-Mail",                           50, [4, 5], false, true),
+        ];
+        this.game_state = "register";
+        this.goal_state = goal_state;
         this.active_input_ind = -1; // -1 means zero
         this.text_inputs_active = [0, 0, 0]; // keeping track that only one input is active at a time
         this.valid_name = true;
@@ -628,23 +664,22 @@ class Register              extends InteractiveScreen {
 class LogIn                 extends InteractiveScreen {
     constructor(goal_state) {
         var items = [
-            new StaticText(game_state, "Log In to your Account",   70, [1, 5], [1, 1]),
-            new SpecialFunctionItem("send_pwd", "Forgot Password", 60, [4, 5], [1, 2]),
-            new MenuItem("menu", "Back to Menu",                   70, [5, 5], [1, 2]),
+            new StaticText(game_state, "Log In to your Account",   57, [1, 5], [1, 1]),
+            new SpecialFunctionItem("send_pwd", "Forgot Password", 50, [4, 5], [1, 1]),
+            new MenuItem("menu", "Back to Menu",                   45, [5, 5], [1, 2]),
         ];
         super(items);
         this.game_state = "log_in";
         this.goal_state = goal_state;
         if (goal_state == "search_player") {
-            this.items.push(new SpecialFunctionItem("check_log_in_player", "Log In",      70, [5, 5], [2, 2]));
+            this.items.push(new SpecialFunctionItem("check_log_in_player", "Log In",      45, [5, 5], [2, 2]));
         } else {
-            this.items.push(new SpecialFunctionItem("check_log_in_game", "Log In",      70, [5, 5], [2, 2]));
+            this.items.push(new SpecialFunctionItem("check_log_in_game", "Log In",      45, [5, 5], [2, 2]));
         }
         this.input_items = [
-            new TextInput("Your Name",                             60, [2, 5]),
-            new TextInput("Your Password",                         60, [3, 5], true),
+            new TextInput("Your Name",                             50, [2, 5]),
+            new TextInput("Your Password",                         50, [3, 5], true),
         ]
-        // this.input_items[0].active = true;
         this.email_sent_note = false;
         this.log_in_correct = true;
         this.valid_name = true;
@@ -705,7 +740,7 @@ class LogIn                 extends InteractiveScreen {
         }
         // notification that email was sent
         if (this.email_sent_note) {
-            var mail_sent = new StaticText(game_state, "Check your Emails", 60, [4, 5], [2, 2]);
+            var mail_sent = new StaticText(game_state, "Check your Emails", 40, [4.5, 5], [1, 1]);
             mail_sent.color = "rgba(220,0,0,1)";
             mail_sent.render();
         }
@@ -720,10 +755,10 @@ class LogIn                 extends InteractiveScreen {
 class SearchPlayer          extends InteractiveScreen {
     constructor() {
         var items = [
-            new StaticText(game_state, "Welcome, "+logged_in_name+"!", 70, [1, 7], [1, 1]),
+            new StaticText(game_state, "Welcome, "+logged_in_name+"!", 57, [1, 7], [1, 1]),
             new SearchPlayerInput([2, 7], "start_game_search_players", "Search for Player"),
-            new SpecialFunctionItem("log_off", "Log Off", 60, [7, 7], [1, 2]),
-            new MenuItem("menu", "Back to Menu", 60, [7, 7], [2, 2]),
+            new SpecialFunctionItem("log_off", "Log Off", 45, [7, 7], [1, 2]),
+            new MenuItem("menu", "Back to Menu", 45, [7, 7], [2, 2]),
         ];
         super(items);
         this.game_state = "search_player";
@@ -733,10 +768,10 @@ class SearchPlayer          extends InteractiveScreen {
 class SearchGame            extends InteractiveScreen {
     constructor() {
         var items = [
-            new StaticText(game_state, "Welcome, "+logged_in_name+"!", 70, [1, 7], [1, 1]),
+            new StaticText(game_state, "Welcome, "+logged_in_name+"!", 57, [1, 7], [1, 1]),
             new SearchPlayerInput([2, 7], "start_game_search_games", "Search for Game"),
-            new SpecialFunctionItem("log_off", "Log Off", 60, [7, 7], [1, 2]),
-            new MenuItem("menu", "Back to Menu", 60, [7, 7], [2, 2]),
+            new SpecialFunctionItem("log_off", "Log Off", 45, [7, 7], [1, 2]),
+            new MenuItem("menu", "Back to Menu", 45, [7, 7], [2, 2]),
         ];
         super(items);
         this.game_state = "search_game";
@@ -795,7 +830,7 @@ class Game                  extends InteractiveScreen {
         this.cells = [];
 
         // get the step size
-        this.step_size = canv_h/Math.max(Number(this.n_hori) + 2, Number(this.n_vert) + 2);
+        this.step_size = Math.min(canv_w, canv_h)/Math.max(Number(this.n_hori) + 2, Number(this.n_vert) + 2);
         this.start_left = (canv_w - (this.step_size*this.n_vert))/2;
         this.end_right = this.start_left + this.n_vert*this.step_size;
         this.start_top = (canv_h - (this.step_size*this.n_hori))/2;
@@ -825,6 +860,9 @@ class Game                  extends InteractiveScreen {
                 this.cells[i].push(new Cell(i, ii, l, r, t, b));
             }
         }
+    }
+    update_cells() {
+        // TODO
     }
     count_cells(player) {
         var counter = 0;
@@ -1402,16 +1440,65 @@ class GameEndOptions        extends InteractiveScreen {
 
 class Rules                 extends InteractiveScreen {
     constructor() {
-        var items = [
-            new StaticText(game_state, "Put 4 of your stones in a row, column or diagonal.",                                 50, [2, 10], [1, 1]),
-            new StaticText(game_state, "Avoid putting 3 of your stones in a row, column or diagonal.",                       50, [3, 10], [1, 1]),
-            new StaticText(game_state, "Stop your opponent from putting 4 of his/her stones in a row, column or diagonal.",  50, [4, 10], [1, 1]),
-            new StaticText(game_state, "Fool your opponent into putting 3 of his/her stones in a row, column or diagonal.",  50, [5, 10], [1, 1]),
-            new StaticText(game_state, "Have fun!",                                                                          50, [7, 10], [1, 1]),
-            new MenuItem("menu", "Go Back to Menu",                                                                          60, [9, 10], [1, 1]),
-        ];
+        if (canv_w > canv_h) {
+            var items = [
+                new StaticText(game_state, "Put 4 of your stones in a row, column or diagonal.",                                 50, [2, 10], [1, 1]),
+                new StaticText(game_state, "Avoid putting 3 of your stones in a row, column or diagonal.",                       50, [3, 10], [1, 1]),
+                new StaticText(game_state, "Stop your opponent from putting 4 of his/her stones in a row, column or diagonal.",  50, [4, 10], [1, 1]),
+                new StaticText(game_state, "Fool your opponent into putting 3 of his/her stones in a row, column or diagonal.",  50, [5, 10], [1, 1]),
+                new StaticText(game_state, "Have fun!",                                                                          50, [7, 10], [1, 1]),
+                new MenuItem("menu", "Go Back to Menu",                                                                          60, [9, 10], [1, 1]),
+            ];
+        } else {
+            var items = [
+                new StaticText(game_state, "Put 4 of your stones in a row,",            40, [1, 20], [1, 1]),
+                new StaticText(game_state, "column or diagonal.",                       40, [2, 20], [1, 1]),
+                new StaticText(game_state, "Avoid putting 3 of your stones",            40, [3, 20], [1, 1]),
+                new StaticText(game_state, "in a row, column or diagonal.",             40, [4, 20], [1, 1]),
+                new StaticText(game_state, "Stop your opponent from",                   40, [5, 20], [1, 1]),
+                new StaticText(game_state, "putting 4 of his",                          40, [6, 20], [1, 1]),
+                new StaticText(game_state, "/her stones in a row,",                     40, [7, 20], [1, 1]),
+                new StaticText(game_state, "column or diagonal.",                       40, [8, 20], [1, 1]),
+                new StaticText(game_state, "Fool your opponent into",                   40, [9 ,20], [1, 1]),
+                new StaticText(game_state, "putting 3 of his",                          40, [10,20], [1, 1]),
+                new StaticText(game_state, "/her stones in a row,",                     40, [11,20], [1, 1]),
+                new StaticText(game_state, "column or diagonal.",                       40, [12,20], [1, 1]),
+                new StaticText(game_state, "Have fun!",                                 50, [7, 10], [1, 1]),
+                new MenuItem("menu", "Go Back to Menu",                                 60, [9, 10], [1, 1]),
+            ];
+        }
         super(items);
         this.game_state = "rules";
+    }
+    update() {
+        if (canv_w > canv_h) {
+            this.items = [
+                new StaticText(game_state, "Put 4 of your stones in a row, column or diagonal.",                                 50, [2, 10], [1, 1]),
+                new StaticText(game_state, "Avoid putting 3 of your stones in a row, column or diagonal.",                       50, [3, 10], [1, 1]),
+                new StaticText(game_state, "Stop your opponent from putting 4 of his/her stones in a row, column or diagonal.",  50, [4, 10], [1, 1]),
+                new StaticText(game_state, "Fool your opponent into putting 3 of his/her stones in a row, column or diagonal.",  50, [5, 10], [1, 1]),
+                new StaticText(game_state, "Have fun!",                                                                          50, [7, 10], [1, 1]),
+                new MenuItem("menu", "Go Back to Menu",                                                                          60, [9, 10], [1, 1]),
+            ];
+        } else {
+            this.items = [
+                new StaticText(game_state, "Put 4 of your stones in a row,",            40, [1, 20], [1, 1]),
+                new StaticText(game_state, "column or diagonal.",                       40, [2, 20], [1, 1]),
+                new StaticText(game_state, "Avoid putting 3 of your stones",            40, [3, 20], [1, 1]),
+                new StaticText(game_state, "in a row, column or diagonal.",             40, [4, 20], [1, 1]),
+                new StaticText(game_state, "Stop your opponent from",                   40, [5, 20], [1, 1]),
+                new StaticText(game_state, "putting 4 of his",                          40, [6, 20], [1, 1]),
+                new StaticText(game_state, "/her stones in a row,",                     40, [7, 20], [1, 1]),
+                new StaticText(game_state, "column or diagonal.",                       40, [8, 20], [1, 1]),
+                new StaticText(game_state, "Fool your opponent into",                   40, [9 ,20], [1, 1]),
+                new StaticText(game_state, "putting 3 of his",                          40, [10,20], [1, 1]),
+                new StaticText(game_state, "/her stones in a row,",                     40, [11,20], [1, 1]),
+                new StaticText(game_state, "column or diagonal.",                       40, [12,20], [1, 1]),
+                new StaticText(game_state, "Have fun!",                                 50, [7, 10], [1, 1]),
+                new MenuItem("menu", "Go Back to Menu",                                 60, [9, 10], [1, 1]),
+            ];
+        }
+        super.update();
     }
 }
 

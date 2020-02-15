@@ -8,34 +8,58 @@ var current_scale = 1; // keeping track of scale
 var current_translate = {x: 0, y: 0}; // keeping track of translation
 var canv_w;
 var canv_h;
+var smaller_dim;
+var larger_dim; 
+var prev_orient;
+
 // init_initial_ctx_dims
-if (window.innerWidth/window.innerHeight > 1920/1080) {
-    canv_h = window.innerHeight;
-    canv_w = (1920/1080)*canv_h;
-} else {
-    canv_w = window.innerWidth;
-    canv_h = (1080/1920)*canv_w;
+function init_initial_ctx_dims() {
+    if (window.innerWidth/window.innerHeight > 1) { // 1920/1080
+        canv_h = window.innerHeight; // fitting dimension
+        canv_w = (1920/1080)*canv_h; // derived dimension
+        prev_orient = "h";
+    } else {
+        canv_w = window.innerWidth; // fitting dimension
+        canv_h = (1920/1080)*canv_w; // derived dimension
+        prev_orient = "v";
+    }
+    smaller_dim = Math.min(canv_w, canv_h);
+    larger_dim  = Math.max(canv_w, canv_h);
 }
 
+// TODO init two latent kinds of item arrangements, AABBs for menu items etc.
+// activated when there is a orientation change
+
+init_initial_ctx_dims();
+
 function resize() {
-    // keep ratio of 1920:1080, add white PAL bars if needed
-    // case 1: ratio larger --> add PAL to left and right
+    // keep ratio of 1920:1080
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    if (window.innerWidth/window.innerHeight > 1920/1080) {
+    // TODO replace with function that just checks for orientation change
+    init_initial_ctx_dims();
+
+    current_translate.x = 0;
+    current_translate.y = 0;
+
+    if (window.innerWidth/window.innerHeight > 1) {
         // WINDOW IS WIDER
-        // set the scale such that canvas height matches window height
-        current_scale = canvas.height / canv_h;
-        // set the transform such that context is centered
-        current_translate.x = (window.innerWidth - canv_w*current_scale)/2;
-        current_translate.y = 0;
+        if (window.innerWidth/window.innerHeight > 1920/1080) {
+            current_scale = canvas.height / canv_h;
+            current_translate.x = (window.innerWidth - canv_w*current_scale)/2;
+        } else {
+            current_scale = canvas.width / canv_w;
+            current_translate.y = (window.innerHeight - canv_h*current_scale)/2;
+        }
     } else {
         // WINDOW IS TALLER
-        // set the scale such that canvas width matches window width
-        current_scale = canvas.width / canv_w;
-        // current_scale.y = current_scale.x;//(1080/1920)*current_scale.x;
-        current_translate.x = 0;
-        current_translate.y = (window.innerHeight - canv_h*current_scale)/2;
+        if (window.innerHeight/window.innerWidth > 1920/1080) {
+            current_scale = canvas.width / canv_w;
+            current_translate.y = (window.innerHeight - canv_h*current_scale)/2;
+        } else {
+            current_scale = canvas.height / canv_h;
+            current_translate.x = (window.innerWidth - canv_w*current_scale)/2;
+        }
     }
 	ctx.setTransform(current_scale, 0, 0, current_scale, current_translate.x, current_translate.y);
 }
@@ -45,10 +69,11 @@ resize();
 // TODO implement zooming
 
 function clear_canvas() {
-    ctx.clearRect(0, 0, canv_w, canv_h)
-    var start_w = -current_translate.x; // -(window.innerWidth - canv_w)/2;
-    var start_h = -current_translate.y; // -(window.innerHeight - canv_h)/2;
-    ctx.clearRect(start_w, start_h, window.innerWidth, window.innerHeight);
+    // ctx.clearRect(0, 0, canv_w, canv_h)
+    var start_w = -current_translate.x/current_scale; // -(window.innerWidth - canv_w)/2;
+    var start_h = -current_translate.y/current_scale; // -(window.innerHeight - canv_h)/2;
+    ctx.clearRect(start_w, start_h, window.innerWidth/current_scale, window.innerHeight/current_scale);
+
 }
 
 function clear_window() {
@@ -159,13 +184,13 @@ function draw_tri(size, dir, pos, color, filled=true) {
     draw_poly(coords, filled, color);
 }
 
-function display_text(label, line, n_lines, col, n_cols, size, color) {
+function display_text(label, line, n_lines, col, n_cols, size, color, font="Arial") {
     ctx.beginPath();
     // derive the coord by getting ys of line given the size
     var AABB = get_text_AABB(line, n_lines, col, n_cols);
     // size standardized by height
     size *= (canv_h/1080);
-    ctx.font = String(size)+"px Arial";
+    ctx.font = String(size)+"px "+font;
     ctx.textAlign = "center";
     ctx.fillStyle = color;
     var xpos = middle(AABB[0].x, AABB[1].x);
@@ -174,11 +199,11 @@ function display_text(label, line, n_lines, col, n_cols, size, color) {
     ctx.closePath();
 }
 
-function get_text_AABB(label, line, n_lines, col, n_cols, size) {
+function get_text_AABB_OLD(label, line, n_lines, col, n_cols, size) {
     ctx.beginPath();
     // derive the coord by getting ys of line given the size
     var AABB = get_text_AABB(line, n_lines, col, n_cols);
-    // size standardized by height
+    // size standardized by smaller dimension height
     size *= (canv_h/1080);
     ctx.font = String(size)+"px Arial";
     ctx.textAlign = "center";

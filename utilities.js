@@ -4,7 +4,7 @@ function coord(x_val, y_val) {
 }
 
 function coord_game_space(coord) {
-    // adjust for global scale and translation
+    // adjust for global translation
     coord.x -= current_translate.x;
     coord.y -= current_translate.y;
     coord.x /= current_scale;
@@ -21,33 +21,34 @@ function get_text_dims(text, size) {
     return [text_width, text_height];
 }
 
-function get_cursor_line(text, size, row, n_rows, col, n_cols) {
-    var text_width = get_text_dims(text, size)[0];
-    var text_height = get_text_dims(text, size)[1];
-    var height = Math.round(canv_h/n_rows);
-    var y_start = height*(row - 1);
-    var y_end = y_start + height;
-    var y_mid = (y_start + y_end)/2;
-    var width = Math.round(canv_w/n_cols);
-    var x_start = (col - 1)*width;
-    var x_end = col*width;
-    var x_mid = (x_start + x_end)/2;
-    var coord1 = {x: x_mid + 0.5*text_width + 10*(canv_h/1080), y: y_mid - 0.5*text_height};
-    var coord2 = {x: x_mid + 0.5*text_width + 10*(canv_h/1080), y: y_mid + 0.5*text_height};
-    return [coord1, coord2];
-}
-
 // AABB: [coord_upper_left, coord_lower_right]
 function get_text_AABB(row, n_rows, col, n_cols) {
+    
     var height = Math.round(canv_h/n_rows);
     var y_start = height*(row - 1);
     var y_end = y_start + height;
+
     var width = Math.round(canv_w/n_cols);
     var x_start = (col - 1)*width;
     var x_end = col*width;
+
     var coord_start = {x: x_start, y: y_start};
     var coord_end = {x: x_end, y: y_end};
     return [coord_start, coord_end];
+}
+
+function check_orient_change() {
+    var ratio = window.innerWidth/window.innerHeight;
+    if ((ratio > 1 && prev_orient == "v") || (ratio <= 1 && prev_orient == "h")) {
+        if (prev_orient == "h") {
+            prev_orient = "v";
+        } else {
+            prev_orient = "h";
+        }
+        return true;
+    } else {
+        return false;
+    }
 }
 
 function get_middle_coord(row, n_rows, col, n_cols) {
@@ -370,6 +371,10 @@ function init_game(player2, switch_turns=false, player1=logged_in_name) {
     if (switch_turns) {
         screens[6].turn = 2;
     }
+    // send mail to opponent
+    var player2_mail = DB_call("get_mail", [player2], true);
+    var subject = "New 4wins3loses Duel Challenge!";
+    DB_call("send_mail_challenged", [player2_mail, subject, logged_in_name, player2]);
     game_state = "game";
 }
 
