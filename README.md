@@ -2,7 +2,7 @@
 A twist to the beloved 4 wins 2-player game.
 
 ## How to play
-To start the game, follow the link below:
+To start the game, follow this link:
 https://kricki.rocks/4wins3loses/
 
 If it is your first time, you need to create an account. Just click "Start New Game" and then "Register New Player". Then you can choose a player from the list and challenge him/her to a match!
