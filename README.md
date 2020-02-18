@@ -12,7 +12,7 @@ The rules are simple. It is like 4 wins: If you put 4 of your stones either hori
 
 Then, how can you win? You need to leave gaps. For example, if this is a row of yours:
 
-X X   X
+X X _ X
 
 you could in principle win the game in the next move by closing the gap:
 
